@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "nl.jellebol.notes",
+      "sha256_cert_fingerprints": [
+        "D6:73:0B:D2:E0:49:70:50:DD:7E:E5:D8:6A:37:6E:E3:60:B9:D4:85:27:0B:11:C1:B3:B3:BA:3C:DE:09:CC:4E"
+      ]
+    }
+  }
+]

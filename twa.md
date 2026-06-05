@@ -31,7 +31,7 @@ Wat er al staat (na Fase 0–9):
 | Deployment | ✅ Vercel, auto-deploy op push naar `main`; domein **`https://notes.jellebol.nl`** (HTTPS — vereist voor TWA en push) |
 | Auth/backend | ✅ Supabase (gedeeld project met agenda): Auth, PostgreSQL met RLS, Realtime; offline-first localStorage-sync |
 | API-routes | ✅ `app/api/push/subscribe` (POST/DELETE) + `app/api/push/test` (POST), Bearer-token-auth, beperkt tot `PUSH_TOEGESTAAN_EMAIL` |
-| `assetlinks.json` | ❌ Geen `public/.well-known/` (Fase 3 — wacht op keystore-fingerprint) |
+| `assetlinks.json` | ✅ `public/.well-known/assetlinks.json` — package `nl.jellebol.notes` + SHA-256-fingerprint van de keystore |
 | Push-infra | ✅ VAPID-keys gegenereerd (lokaal in `.env.local`; nog naar Vercel), `notes_push_subscriptions` in `supabase/schema.sql` (nog uitvoeren in SQL Editor), sectie Pushmeldingen in InstellingenMenu |
 
 **Referentie:** de agenda-app (`D:\jelle\agenda`, niet wijzigen) heeft een complete, werkende web-push-stack die vrijwel 1:1 te kopiëren is: `app/lib/pushUtils.ts` (subscribe/afmelden incl. VAPID-key-rotatiecheck), `app/api/push/subscribe` + `app/api/push/test` (Bearer-token auth, `web-push`, dode subscriptions opruimen bij 404/410), de `push_subscriptions`-tabel en sw.js-handlers voor `push`/`notificationclick`. Ook het InstellingenMenu-patroon met permission-status en testknop bestaat daar al.
@@ -206,8 +206,13 @@ Gebouwd naar agenda-patroon:
 2. In Vercel (Production + Preview) de env-vars zetten: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` — waarden staan lokaal in `.env.local` (de private key nooit elders delen).
 3. Testen: instellingen → Pushmeldingen inschakelen → Test pushmelding (eerst lokaal/desktop-Chrome, daarna op de S26 in Chrome).
 
-### TWA Fase 3 — TWA wrapper
-Bubblewrap installeren, project init in een map buiten deze repo, package name, keystore aanmaken + veilig opbergen, `assetlinks.json` genereren en hosten via `public/.well-known/`.
+### TWA Fase 3 — TWA wrapper ✅ afgerond
+
+- Bubblewrap CLI geïnstalleerd; `bubblewrap doctor` groen (JDK 17 + Android SDK via `~/.bubblewrap`).
+- Project geïnitialiseerd in **`D:\jelle\notes-twa`** (buiten deze repo): package `nl.jellebol.notes`, naam "Notities", `standalone`/portrait, witte theme, `enableNotifications: true`, icons 512 + maskable van de live site.
+- Keystore `android.keystore` (alias `android`) in de projectmap; wachtwoord in de wachtwoordmanager. **Let op (geleerd tijdens de build):** gebruik voor keystore-wachtwoorden alleen letters/cijfers — Bubblewrap geeft het wachtwoord op Windows via de command line door aan apksigner, en speciale tekens worden door cmd verminkt (eerste keystore moest daardoor opnieuw, en het wachtwoord lekte in een foutmelding).
+- `bubblewrap build` → `app-release-signed.apk` (+ `.aab`, voor ons niet nodig).
+- `assetlinks.json` (package + SHA-256-fingerprint, publiek) staat in `public/.well-known/` en wordt door Vercel op de root geserveerd.
 
 ### TWA Fase 4 — APK build en privé-installatie
 `bubblewrap build`, sideloaden op het eigen toestel, volledig testplan (§9) doorlopen, bevindingen hier bijwerken.
@@ -232,4 +237,4 @@ Reminders per note, app-event-pushes, Vercel-cron-scheduler (agenda-patroon), te
 
 ---
 
-*Status: TWA Fase 1 ✅ en Fase 2 (code) ✅ afgerond; alle open vragen (§12) beantwoord. Volgende stap: Supabase-schema draaien + Vercel-env-vars zetten (zie §11 Fase 2) → testpush verifiëren → TWA Fase 3 (Bubblewrap-wrapper in een map buiten deze repo).*
+*Status: TWA Fase 1 ✅, Fase 2 ✅ (testpush werkt op desktop én S26) en Fase 3 ✅ (wrapper gebouwd, assetlinks gehost). Volgende stap: Fase 4 — `app-release-signed.apk` sideloaden op de S26 en het testplan (§9) doorlopen.*
