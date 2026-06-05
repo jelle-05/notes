@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, Plus, Trash2, X } from 'lucide-react'
-import type { Notitie, LijstItem, Label } from '@/types'
+import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, Folder, FolderMinus, Plus, Trash2, X } from 'lucide-react'
+import type { Notitie, LijstItem, Label, NotitieMap } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
 import { eventKleuren } from '@/lib/kleuren'
 import KopieerKnop from './KopieerKnop'
@@ -11,6 +11,7 @@ import LabelPill from './LabelPill'
 interface Props {
   notitie: Notitie
   labels: Label[]
+  mappen: NotitieMap[]
   onWijzig: (notitie: Notitie) => void
   onVerwijder: (id: string) => void
   onSluit: () => void
@@ -20,11 +21,12 @@ interface Props {
 // direct doorgegeven aan NotesApp (optimistisch lokaal + debounced Supabase).
 // De draft is bewust onafhankelijk van props ná het openen, zodat een
 // realtime-herlaad de open editor nooit overschrijft.
-export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, onSluit }: Props) {
+export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVerwijder, onSluit }: Props) {
   const [draft, setDraft] = useState<Notitie>(() => ({ ...notitie, items: [...notitie.items] }))
   const [nieuwTekst, setNieuwTekst] = useState('')
   const [verwijderBevestig, setVerwijderBevestig] = useState(false)
   const [labelKiezerOpen, setLabelKiezerOpen] = useState(false)
+  const [mapKiezerOpen, setMapKiezerOpen] = useState(false)
 
   const nieuwItemRef    = useRef<HTMLInputElement>(null)
   const bevestigTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -37,6 +39,7 @@ export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, 
     setNieuwTekst('')
     setVerwijderBevestig(false)
     setLabelKiezerOpen(false)
+    setMapKiezerOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notitie.id])
 
@@ -97,6 +100,17 @@ export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, 
     if (draft.labelIds[0] === id) return
     wijzig({ labelIds: [id, ...draft.labelIds.filter(l => l !== id)] })
   }
+
+  // ── Map ──────────────────────────────────────────────────────────────────────
+
+  // Verplaatst de note naar een map (of haalt hem eruit) via het normale
+  // auto-save-pad — alleen mapId wijzigt, de rest van de draft blijft staan.
+  function kiesMap(id?: string) {
+    wijzig({ mapId: id })
+    setMapKiezerOpen(false)
+  }
+
+  const huidigeMap = mappen.find(m => m.id === draft.mapId)
 
   // ── Verwijderen (twee-staps bevestiging) ─────────────────────────────────────
 
@@ -186,6 +200,51 @@ export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, 
               />
             </div>
           )}
+
+          {/* Map */}
+          <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold">Map</span>
+              <button
+                onClick={() => setMapKiezerOpen(o => !o)}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-[#007AFF] hover:text-[#0066D6] transition-colors min-w-0"
+              >
+                {mapKiezerOpen ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
+                <span className="truncate max-w-[180px]">{huidigeMap?.naam ?? 'Geen map'}</span>
+              </button>
+            </div>
+
+            {/* Keuzelijst: Geen map + alle mappen */}
+            {mapKiezerOpen && (
+              mappen.length > 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+                  <button
+                    onClick={() => kiesMap(undefined)}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                  >
+                    <FolderMinus size={16} className="text-gray-400 shrink-0" />
+                    <span className="flex-1 text-[14px] text-gray-900 text-left truncate">Geen map</span>
+                    {!draft.mapId && <Check size={16} className="text-[#007AFF] shrink-0" />}
+                  </button>
+                  {mappen.map(map => (
+                    <button
+                      key={map.id}
+                      onClick={() => kiesMap(map.id)}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                    >
+                      <Folder size={16} className="text-gray-400 shrink-0" />
+                      <span className="flex-1 text-[14px] text-gray-900 text-left truncate">{map.naam}</span>
+                      {draft.mapId === map.id && <Check size={16} className="text-[#007AFF] shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[13px] text-gray-400">
+                  Nog geen mappen — maak ze aan via <strong>Mappen</strong> in het menu.
+                </p>
+              )
+            )}
+          </div>
 
           {/* Labels */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">

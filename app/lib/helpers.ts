@@ -1,5 +1,5 @@
 // Kleine factories en helpers voor het datamodel; houden de UI-fases dun.
-import type { Notitie, NotitieType, LijstItem } from '@/types'
+import type { Notitie, NotitieType, LijstItem, NotitieMap } from '@/types'
 
 /** Huidige tijd als ISO-string (gebruikt voor aangemaaktOp/gewijzigdOp). */
 export function nuIso(): string {
@@ -21,6 +21,15 @@ export function nieuweNotitie(type: NotitieType): Notitie {
     gearchiveerdOp: undefined,
     aangemaaktOp: nu,
     gewijzigdOp: nu,
+  }
+}
+
+/** Nieuwe map met gegeven (al getrimde) naam. */
+export function nieuweMap(naam: string): NotitieMap {
+  return {
+    id: crypto.randomUUID(),
+    naam,
+    aangemaaktOp: nuIso(),
   }
 }
 

@@ -347,16 +347,29 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** notes organiseren in eigen mappen (één niveau diep).
 
+**Status: afgerond** (klik-test door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- De volledige opslaglaag (lokaal + Supabase CRUD + realtime op `notes_mappen`) bestond al sinds Fase 2 — Fase 6 voegt alleen UI en filterstate toe.
+- **Mapfilter = AND** met de rest: een note moet in de gekozen map zitten én aan zoekterm/labelfilter voldoen. Sentinel `GEEN_MAP_FILTER` (in `types.ts`) voor het filter "Geen map" (notities zonder map).
+- Een map heeft bewust **alleen een naam** (de `kleur`-kolom blijft ongebruikt) en geen `gewijzigd_op` — hernoemen is een hele-rij-upsert, conform schema. Dubbele namen zijn — net als bij labels — toegestaan.
+- **Verwijderen verplaatst nooit notes de prullenbak in**: alle notes met die `mapId` (ook gearchiveerde) gaan naar "Geen map", zonder `gewijzigdOp`-bump (kaartvolgorde blijft staan, zelfde keuze als bij label-verwijderen). Labelkoppelingen blijven onaangetast.
+- **Verwijderde map breekt geen filterstate**: lokaal verwijderen reset het actieve mapfilter naar "Alle notities"; een realtime-verwijdering vanaf een ander apparaat wordt render-time genegeerd (mapfilter op een onbekend id doet niets).
+- Navigatiekeuze: "Alle notities"/Notities-tab wist het mapfilter; mapkeuze zet altijd weergave 'alle'. De TopBar toont de mapnaam als titel bij een actief mapfilter.
+
 ### Taken
-- [ ] `MapBeheer.tsx`: modal voor mappen aanmaken, hernoemen, verwijderen.
-- [ ] Mappenlijst in de desktop-sidebar (sectie "Mappen", klik = filter) + "＋ Nieuwe map".
-- [ ] Mobiel: mappen via bottom-sheet vanaf de Mappen-tab.
-- [ ] Map kiezen in `NotitieFormulier` (dropdown/sheet, optie "Geen map").
-- [ ] **Veilige verwijderflow**: bevestigingsdialoog "Map verwijderen? De notities blijven bestaan en verhuizen naar Geen map." → `map_id = null` op betreffende notes.
-- [ ] Lege-map empty state.
+- [x] `MapBeheer.tsx`: modal voor mappen aanmaken, hernoemen (trim, lege naam geblokkeerd via disabled Bewaar), verwijderen — LabelBeheer-patroon (lijst ↔ bewerk), met aantal notities per map in de lijst.
+- [x] Mappenlijst in de desktop-sidebar (sectie "Mappen", klik = filter, incl. "Geen map") + ＋-knop voor beheer; scrollbaar bij veel mappen, nav-items uit Fase 1 blijven werken.
+- [x] Mobiel: `MapKiezer.tsx` bottom-sheet vanaf de Mappen-tab (Alle notities / Geen map / mappen, ✓ bij actief) + knop "Mappen beheren"; Mappen-tab licht op bij actief mapfilter.
+- [x] Map kiezen in `NotitieDetail` (uitklapbare keuzelijst boven Labels, optie "Geen map", ✓ bij huidige) — loopt via het bestaande auto-save-pad, alleen `mapId` wijzigt.
+- [x] **Veilige verwijderflow**: uitlegtekst met aantal notities ("blijven bestaan en verhuizen naar Geen map") + twee-staps bevestiging → `mapId` eraf lokaal + bulk-upsert remote.
+- [x] Actief mapfilter zichtbaar (sidebar-highlight, TopBar-titel, blauwe chip in de filterbalk met ×) en wisbaar (chip-×, "Wis filters", Alle notities).
+- [x] Empty states: "Deze map is leeg" / "Geen losse notities" (alleen mapfilter), bestaande "Geen resultaten" bij combinatie met zoek/labels, "Nog geen mappen…" in beheer/kiezer.
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
+- [ ] **Handmatig (Jelle):** klik-test na deploy — map aanmaken/hernoemen/verwijderen, note verplaatsen, filteren (incl. combinatie met zoeken/labels), mobiele sheet.
 
 ### Resultaat
-> Mappen aanmaken en notes erin organiseren, zonder dataverlies bij verwijderen.
+> Mappen aanmaken en notes erin organiseren, zonder dataverlies bij verwijderen; filteren op map werkt samen met zoeken en labels.
 
 ---
 

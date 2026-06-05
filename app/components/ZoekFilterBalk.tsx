@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Search, X } from 'lucide-react'
+import { Check, Folder, Search, X } from 'lucide-react'
 import type { Label } from '@/types'
 import { eventKleuren } from '@/lib/kleuren'
 
@@ -9,14 +9,20 @@ interface Props {
   onZoek: (term: string) => void
   labels: Label[]
   actieveLabelIds: string[]
+  mapFilterNaam: string | null   // mapnaam of "Geen map"; null = geen mapfilter
   onToggleLabel: (id: string) => void
+  onWisMapFilter: () => void
   onWisFilters: () => void
 }
 
-// Zoekveld + label-filterpills boven het notitie-grid. Filteren is volledig
-// client-side (afgeleide state in NotesApp); meerdere actieve labels = OR-logica.
-export default function ZoekFilterBalk({ zoekterm, onZoek, labels, actieveLabelIds, onToggleLabel, onWisFilters }: Props) {
-  const heeftFilters = zoekterm.trim() !== '' || actieveLabelIds.length > 0
+// Zoekveld + filterpills boven het notitie-grid. Filteren is volledig
+// client-side (afgeleide state in NotesApp); meerdere actieve labels = OR,
+// het mapfilter werkt als AND met de rest.
+export default function ZoekFilterBalk({
+  zoekterm, onZoek, labels, actieveLabelIds, mapFilterNaam,
+  onToggleLabel, onWisMapFilter, onWisFilters,
+}: Props) {
+  const heeftFilters = zoekterm.trim() !== '' || actieveLabelIds.length > 0 || mapFilterNaam !== null
 
   return (
     <div className="px-3 sm:px-4 pt-3 space-y-2">
@@ -41,9 +47,24 @@ export default function ZoekFilterBalk({ zoekterm, onZoek, labels, actieveLabelI
         )}
       </div>
 
-      {/* Label-filterpills (horizontaal scrollbaar bij veel labels) */}
-      {labels.length > 0 && (
+      {/* Filterpills (horizontaal scrollbaar bij veel labels) */}
+      {(labels.length > 0 || mapFilterNaam !== null) && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 [-webkit-overflow-scrolling:touch]">
+          {/* Actieve mapfilter als chip vooraan */}
+          {mapFilterNaam !== null && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#007AFF]/30 bg-blue-50 px-3 py-1.5 text-[13px] font-semibold text-[#007AFF] shrink-0">
+              <Folder size={13} className="shrink-0" />
+              <span className="truncate max-w-[140px]">{mapFilterNaam}</span>
+              <button
+                onClick={onWisMapFilter}
+                aria-label="Wis mapfilter"
+                className="shrink-0 -mr-1 p-0.5 opacity-70 hover:opacity-100 transition-opacity"
+              >
+                <X size={13} />
+              </button>
+            </span>
+          )}
+
           {labels.map(label => {
             const actief = actieveLabelIds.includes(label.id)
             const kleuren = eventKleuren(label)

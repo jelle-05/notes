@@ -46,6 +46,10 @@ export type NotitieMap = {
   aangemaaktOp: string    // ISO timestamp
 }
 
+/** Sentinel voor het mapfilter "Geen map" (notities zonder map). Botst nooit
+ *  met echte map-ids omdat die UUID's zijn. */
+export const GEEN_MAP_FILTER = 'geen-map'
+
 export type Instellingen = {
   autoArchiefAan: boolean
   autoArchiefDagen: number

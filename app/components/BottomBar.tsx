@@ -5,12 +5,13 @@ import type { Weergave } from '@/types'
 
 interface Props {
   weergave: Weergave
+  mapFilterActief: boolean
   onWeergaveChange: (w: Weergave) => void
   onMappen: () => void
 }
 
 // Mobiele navigatiebalk (verborgen op desktop; daar neemt de Sidebar het over).
-export default function BottomBar({ weergave, onWeergaveChange, onMappen }: Props) {
+export default function BottomBar({ weergave, mapFilterActief, onWeergaveChange, onMappen }: Props) {
   const knopKlasse = (actief: boolean) =>
     [
       'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors',
@@ -19,13 +20,13 @@ export default function BottomBar({ weergave, onWeergaveChange, onMappen }: Prop
 
   return (
     <nav className="sm:hidden flex items-stretch border-t border-gray-200 bg-white shrink-0 safe-area-bottom">
-      <button onClick={() => onWeergaveChange('alle')} className={knopKlasse(weergave === 'alle')}>
-        <StickyNote size={22} className={weergave === 'alle' ? 'text-[#007AFF]' : 'text-gray-400'} />
+      <button onClick={() => onWeergaveChange('alle')} className={knopKlasse(weergave === 'alle' && !mapFilterActief)}>
+        <StickyNote size={22} className={weergave === 'alle' && !mapFilterActief ? 'text-[#007AFF]' : 'text-gray-400'} />
         Notities
       </button>
 
-      <button onClick={onMappen} className={knopKlasse(weergave === 'map')}>
-        <Folder size={22} className={weergave === 'map' ? 'text-[#007AFF]' : 'text-gray-400'} />
+      <button onClick={onMappen} className={knopKlasse(mapFilterActief)}>
+        <Folder size={22} className={mapFilterActief ? 'text-[#007AFF]' : 'text-gray-400'} />
         Mappen
       </button>
 

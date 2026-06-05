@@ -32,7 +32,9 @@ app/
     KopieerKnop.tsx    — kopieer-als-tekst met 2s feedback
     LabelBeheer.tsx    — labelbeheer (kopie agenda: presets, color picker, contrast-warning)
     LabelPill.tsx      — label-pill met eventKleuren()-kleurresolutie
-    Sidebar.tsx        — desktop-navigatie (incl. externe agenda-link)
+    MapBeheer.tsx      — mappenbeheer (LabelBeheer-patroon: lijst ↔ bewerk, twee-staps delete)
+    MapKiezer.tsx      — mobiele mappen-sheet (filter kiezen + naar beheer)
+    Sidebar.tsx        — desktop-navigatie + mappensectie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
     PlaceholderModal.tsx — tijdelijk, voor features uit latere fases
@@ -85,14 +87,27 @@ Kaarten hebben geen schaduw (alleen border).
 
 Volledig client-side als **afgeleide state**: één `useMemo` (`getoondeNotities`)
 bovenop `actieveNotities` — geen Supabase-queries per toetsaanslag, geen
-search-library. Filterketen: map (`actieveMapId`, technisch voorbereid voor
-Fase 6, nog zonder UI) → labels → zoekterm. Labelfilter is **OR**: een note
-matcht zodra hij minstens één actief label heeft; togglen kan via een pill op
-de kaart of via `ZoekFilterBalk`. Ids van verwijderde labels worden bij het
-filteren genegeerd én bij lokaal verwijderen uit `actieveLabelIds` gestript —
-nooit kapotte filterstate. Zoeken: getrimd, case-insensitive, over titel,
-inhoud en checklist-itemteksten. Gearchiveerde notes zitten nooit in de
-resultaten. `NotitieKaart` is een `div role="button"` (pills zijn zelf buttons).
+search-library. Filterketen: map (**AND**) → labels (**OR**: minstens één
+actief label) → zoekterm. Togglen kan via een pill op de kaart of via
+`ZoekFilterBalk`. Ids van verwijderde labels worden bij het filteren genegeerd
+én bij lokaal verwijderen uit `actieveLabelIds` gestript — nooit kapotte
+filterstate. Zoeken: getrimd, case-insensitive, over titel, inhoud en
+checklist-itemteksten. Gearchiveerde notes zitten nooit in de resultaten.
+`NotitieKaart` is een `div role="button"` (pills zijn zelf buttons).
+
+## Mappen (Fase 6)
+
+Platte mappen, alleen een naam (de `kleur`-kolom blijft ongebruikt; geen
+`gewijzigd_op` — hernoemen is een hele-rij-upsert). Beheer via `MapBeheer`
+(LabelBeheer-patroon); desktop kiest een map in de Sidebar-sectie, mobiel via
+de `MapKiezer`-sheet vanaf de Mappen-tab. Mapfilter zit in `actieveMapId`:
+`null` = alles, sentinel `GEEN_MAP_FILTER` = notities zonder map, anders een
+map-id — AND met zoek/labels; actieve map = TopBar-titel + blauwe chip in de
+filterbalk. Map kiezen per note in `NotitieDetail` (sectie boven Labels) via
+het auto-save-pad. **Map verwijderen** zet `mapId` van alle notes erin (ook
+gearchiveerde) op undefined zonder `gewijzigdOp`-bump en reset het actieve
+filter; een realtime-verwijdering vanaf een ander apparaat wordt render-time
+genegeerd. "Alle notities"/Notities-tab wist het mapfilter.
 
 ## Kopieerfunctie
 
@@ -116,4 +131,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 3 — notes/checklist-UI + kopieerfunctie (auto-save, debounced sync)
 - ✅ Fase 4 — labels (LabelBeheer uit agenda, pills, koppelen in detailweergave)
 - ✅ Fase 5 — filteren op labels (OR) + live zoeken; mapfilter technisch voorbereid
-- ⏭️ Fase 6 — mappen (beheer, sidebar-lijst, map kiezen, veilige verwijderflow)
+- ✅ Fase 6 — mappen (beheer, sidebar-sectie + mobiele sheet, map kiezen per note, veilige verwijderflow)
+- ⏭️ Fase 7 — archief (archiveren/terugzetten, archiefweergave)

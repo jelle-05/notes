@@ -2,7 +2,7 @@
 
 Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen en archief. Zusterproject van de [agenda-app](https://agenda.jellebol.nl) en gebouwd op dezelfde stack en stijl (iOS-geïnspireerd, licht thema, Nederlands).
 
-> Status: **Fase 5 afgerond** — zoeken en filteren op labels. Zie [fases.md](fases.md) voor het volledige bouwplan.
+> Status: **Fase 6 afgerond** — mappen om notities te organiseren. Zie [fases.md](fases.md) voor het volledige bouwplan.
 
 ## Features
 
@@ -11,6 +11,7 @@ Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen 
 - 📋 **Kopiëren als tekst** — geopende note → "Kopieer": titel + inhoud als platte tekst; checklists als `[x] item` / `[ ] item` per regel. Werkt ook op iOS (Clipboard API met fallback)
 - 🏷️ **Labels** — onbeperkt eigen labels met achtergrond- en tekstkleur (color picker + contrast-warning), koppelbaar aan meerdere notes; pills op de kaarten
 - 🔍 **Zoeken & filteren** — live zoeken op titel, inhoud en checklist-items; filteren op labels via pill-klik of filterbalk (meerdere labels = OR), actieve filters zichtbaar en wisbaar
+- 📁 **Mappen** — platte mappen om notities te organiseren; filteren per map (combineert met zoeken/labels), veilige verwijderflow: notities blijven bestaan en verhuizen naar "Geen map"
 - 🔄 **Offline-first + realtime** — direct uit localStorage, stille sync met Supabase, live updates tussen apparaten
 - 🗑️ Verwijderen met twee-staps bevestiging; volledig lege notes worden automatisch opgeruimd
 

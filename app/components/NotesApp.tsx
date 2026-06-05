@@ -1,22 +1,22 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Archive, SearchX, StickyNote } from 'lucide-react'
+import { Archive, Folder, SearchX, StickyNote } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Weergave, Notitie, NotitieType, Label, NotitieMap, Instellingen } from '@/types'
-import { STANDAARD_INSTELLINGEN } from '@/types'
+import { STANDAARD_INSTELLINGEN, GEEN_MAP_FILTER } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { nieuweNotitie, isLeeg } from '@/lib/helpers'
 import {
   laadNotities, slaNotitieOp, verwijderNotitie, slaAlleNotitiesOp,
   laadLabels, slaLabelOp, verwijderLabel, slaAlleLabelsOp,
-  laadMappen, slaAlleMappenOp,
+  laadMappen, slaMapOp, verwijderMap, slaAlleMappenOp,
   laadInstellingen, slaInstellingenOp,
 } from '@/lib/opslag'
 import {
   laadNotitiesVanSupabase, slaNotitieOpInSupabase, slaVeelNotitiesOpInSupabase, verwijderNotitieUitSupabase,
   laadLabelsVanSupabase, slaLabelOpInSupabase, verwijderLabelUitSupabase,
-  laadMappenVanSupabase,
+  laadMappenVanSupabase, slaMapOpInSupabase, verwijderMapUitSupabase,
   laadInstellingenVanSupabase, uploadNaarSupabase,
 } from '@/lib/supabaseOpslag'
 import Sidebar from './Sidebar'
@@ -29,6 +29,8 @@ import NotitieGrid from './NotitieGrid'
 import NotitieDetail from './NotitieDetail'
 import NieuwKeuze from './NieuwKeuze'
 import LabelBeheer from './LabelBeheer'
+import MapBeheer from './MapBeheer'
+import MapKiezer from './MapKiezer'
 import ZoekFilterBalk from './ZoekFilterBalk'
 
 // Titels per weergave voor de TopBar.
@@ -39,10 +41,9 @@ const WEERGAVE_TITELS: Record<Weergave, string> = {
 }
 
 // Placeholder-modals voor functionaliteit uit latere fases (zie fases.md).
-type PlaceholderSoort = 'mappen' | 'instellingen' | null
+type PlaceholderSoort = 'instellingen' | null
 
 const PLACEHOLDER_TITELS: Record<Exclude<PlaceholderSoort, null>, string> = {
-  mappen:       'Mappen',
   instellingen: 'Instellingen',
 }
 
@@ -67,12 +68,14 @@ export default function NotesApp() {
   const [nieuwKeuzeOpen, setNieuwKeuzeOpen]   = useState(false)
   const [detailNotitie, setDetailNotitie]     = useState<Notitie | null>(null)
   const [labelBeheerOpen, setLabelBeheerOpen] = useState(false)
+  const [mapBeheerOpen, setMapBeheerOpen]     = useState(false)
+  const [mapKiezerOpen, setMapKiezerOpen]     = useState(false)   // mobiele mappen-sheet
 
   // Zoeken & filteren (client-side, afgeleide state — zie getoondeNotities)
   const [zoekterm, setZoekterm]               = useState('')
   const [actieveLabelIds, setActieveLabelIds] = useState<string[]>([])
-  // Voorbereiding Fase 6: mapfilter zit al in de filterlogica, nog zonder UI.
-  const [actieveMapId] = useState<string | null>(null)
+  // null = geen mapfilter; GEEN_MAP_FILTER = notities zonder map; anders map-id.
+  const [actieveMapId, setActieveMapId]       = useState<string | null>(null)
 
   // Debounced remote sync: per notitie één timer; de laatste versie wint.
   const syncTimers  = useRef(new Map<string, ReturnType<typeof setTimeout>>())
@@ -298,6 +301,45 @@ export default function NotesApp() {
     }
   }
 
+  // ── Map CRUD (optimistisch lokaal + directe remote sync) ─────────────────────
+
+  function handleOpslaanMap(map: NotitieMap) {
+    setMappen(prev => slaMapOp(map, prev))
+    const userId = gebruiker?.id
+    if (userId) {
+      slaMapOpInSupabase(map, userId)
+        .catch(err => console.error('Supabase map sync mislukt:', err))
+    }
+  }
+
+  // Verwijdert de map en zet de notities erin terug naar "Geen map" — de
+  // notities zelf blijven altijd bestaan. Bewust zonder gewijzigdOp-bump
+  // (zelfde keuze als bij labels): opruimen is geen inhoudelijke wijziging,
+  // dus de kaartvolgorde blijft staan. Labelkoppelingen blijven onaangetast.
+  function handleVerwijderMap(id: string) {
+    setMappen(prev => verwijderMap(id, prev))
+    // Verwijderde map mag niet als actief filter blijven hangen.
+    setActieveMapId(prev => (prev === id ? null : prev))
+    verwijderMapUitSupabase(id)
+      .catch(err => console.error('Supabase map verwijder sync mislukt:', err))
+
+    const getroffen = notities.filter(n => n.mapId === id)
+    if (getroffen.length === 0) return
+
+    const bijgewerkt = notities.map(n =>
+      n.mapId === id ? { ...n, mapId: undefined } : n
+    )
+    setNotities(bijgewerkt)
+    slaAlleNotitiesOp(bijgewerkt)
+
+    const userId = gebruiker?.id
+    if (userId) {
+      const geschoond = bijgewerkt.filter(n => getroffen.some(g => g.id === n.id))
+      slaVeelNotitiesOpInSupabase(geschoond, userId)
+        .catch(err => console.error('Supabase mapId opschonen mislukt:', err))
+    }
+  }
+
   // ── Zoeken & filteren ────────────────────────────────────────────────────────
 
   // Label-filter aan/uit togglen; includes-check voorkomt dubbele filters.
@@ -307,9 +349,24 @@ export default function NotesApp() {
     )
   }
 
+  // Mapfilter kiezen (sidebar, mobiele sheet): null = alle notities.
+  function kiesMapFilter(id: string | null) {
+    setActieveMapId(id)
+    setWeergave('alle')
+    setMapKiezerOpen(false)
+  }
+
+  // Weergave-switch via navigatie; terug naar "alle" wist het mapfilter
+  // (Notities-tab / "Alle notities" betekent: toon álles).
+  function gaNaarWeergave(w: Weergave) {
+    setWeergave(w)
+    if (w === 'alle') setActieveMapId(null)
+  }
+
   function wisFilters() {
     setZoekterm('')
     setActieveLabelIds([])
+    setActieveMapId(null)
   }
 
   // ── Auth & data init (agenda-patroon) ────────────────────────────────────────
@@ -389,15 +446,43 @@ export default function NotesApp() {
   )
   const gearchiveerdeAantal = notities.length - actieveNotities.length
 
-  // Zoek- en filterresultaat als afgeleide state op actieveNotities: map (prep
-  // Fase 6) → labels (OR: minstens één actief label) → zoekterm (titel, inhoud
-  // en checklist-items, case-insensitive). Sortering blijft die van
+  // Mappen alfabetisch voor sidebar, kiezers en beheer.
+  const gesorteerdeMappen = useMemo(
+    () => [...mappen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl')),
+    [mappen],
+  )
+
+  // Aantal notities per map (incl. gearchiveerde — die verhuizen óók mee
+  // wanneer een map verwijderd wordt).
+  const aantalPerMap = useMemo(() => {
+    const telling: Record<string, number> = {}
+    for (const n of notities) {
+      if (n.mapId) telling[n.mapId] = (telling[n.mapId] ?? 0) + 1
+    }
+    return telling
+  }, [notities])
+
+  // De actieve map opzoeken; een (op een ander apparaat) verwijderde map levert
+  // undefined op en het filter wordt dan stil genegeerd — nooit kapotte state.
+  const actieveMap = useMemo(
+    () => actieveMapId && actieveMapId !== GEEN_MAP_FILTER
+      ? mappen.find(m => m.id === actieveMapId)
+      : undefined,
+    [mappen, actieveMapId],
+  )
+  const mapFilterActief = actieveMapId === GEEN_MAP_FILTER || actieveMap !== undefined
+
+  // Zoek- en filterresultaat als afgeleide state op actieveNotities:
+  // map (AND) → labels (OR: minstens één actief label) → zoekterm (titel,
+  // inhoud en checklist-items, case-insensitive). Sortering blijft die van
   // actieveNotities; realtime/localStorage-updates werken automatisch door.
   const getoondeNotities = useMemo(() => {
     let resultaat = actieveNotities
 
-    if (actieveMapId !== null) {
-      resultaat = resultaat.filter(n => n.mapId === actieveMapId)
+    if (actieveMapId === GEEN_MAP_FILTER) {
+      resultaat = resultaat.filter(n => !n.mapId)
+    } else if (actieveMap) {
+      resultaat = resultaat.filter(n => n.mapId === actieveMap.id)
     }
 
     // Alleen filteren op labels die nog bestaan — een (op een ander apparaat)
@@ -417,17 +502,15 @@ export default function NotesApp() {
     }
 
     return resultaat
-  }, [actieveNotities, actieveMapId, actieveLabelIds, labels, zoekterm])
+  }, [actieveNotities, actieveMapId, actieveMap, actieveLabelIds, labels, zoekterm])
 
-  const heeftActieveFilters = zoekterm.trim() !== '' || actieveLabelIds.length > 0
+  const heeftActieveFilters = zoekterm.trim() !== '' || actieveLabelIds.length > 0 || mapFilterActief
+  // Alleen een mapfilter actief (geen zoek/labels) → "lege map"-empty-state.
+  const alleenMapFilter = mapFilterActief && zoekterm.trim() === '' && actieveLabelIds.length === 0
 
   // Placeholder-teksten voor latere fases.
   function placeholderTekst(soort: Exclude<PlaceholderSoort, null>): string {
     switch (soort) {
-      case 'mappen':
-        return mappen.length > 0
-          ? `${mappen.length} map${mappen.length === 1 ? '' : 'pen'} gesynchroniseerd — beheren komt in Fase 6.`
-          : 'Mappen beheren komt in Fase 6.'
       case 'instellingen':
         return `Instellingen komen in Fase 8. Automatisch archiveren staat nu ${instellingen.autoArchiefAan ? `aan (na ${instellingen.autoArchiefDagen} dagen)` : 'uit'}.`
     }
@@ -452,16 +535,21 @@ export default function NotesApp() {
       {/* Desktop-sidebar (verborgen op mobiel) */}
       <Sidebar
         weergave={weergave}
-        onWeergaveChange={setWeergave}
+        mappen={gesorteerdeMappen}
+        actieveMapId={mapFilterActief ? actieveMapId : null}
+        onWeergaveChange={gaNaarWeergave}
+        onKiesMap={kiesMapFilter}
         onLabels={() => setLabelBeheerOpen(true)}
-        onMappen={() => setPlaceholder('mappen')}
+        onMapBeheer={() => setMapBeheerOpen(true)}
         onInstellingen={() => setPlaceholder('instellingen')}
       />
 
       {/* Hoofdkolom */}
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar
-          titel={WEERGAVE_TITELS[weergave]}
+          titel={weergave === 'alle' && mapFilterActief
+            ? (actieveMap?.naam ?? 'Geen map')
+            : WEERGAVE_TITELS[weergave]}
           onNieuw={() => setNieuwKeuzeOpen(true)}
           onProfielMenu={() => setProfielMenuOpen(true)}
           gebruikerEmail={gebruiker.email}
@@ -484,7 +572,9 @@ export default function NotesApp() {
                 onZoek={setZoekterm}
                 labels={labels}
                 actieveLabelIds={actieveLabelIds}
+                mapFilterNaam={mapFilterActief ? (actieveMap?.naam ?? 'Geen map') : null}
                 onToggleLabel={toggleLabelFilter}
+                onWisMapFilter={() => setActieveMapId(null)}
                 onWisFilters={wisFilters}
               />
               {getoondeNotities.length > 0 ? (
@@ -494,6 +584,24 @@ export default function NotesApp() {
                   onOpen={setDetailNotitie}
                   onLabelKlik={toggleLabelFilter}
                 />
+              ) : alleenMapFilter ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                  <Folder size={40} className="text-gray-300" />
+                  <h2 className="text-[17px] font-semibold text-gray-900">
+                    {actieveMapId === GEEN_MAP_FILTER ? 'Geen losse notities' : 'Deze map is leeg'}
+                  </h2>
+                  <p className="text-[14px] text-gray-400 max-w-[280px]">
+                    {actieveMapId === GEEN_MAP_FILTER
+                      ? 'Alle notities zitten in een map.'
+                      : 'Verplaats notities hierheen via de detailweergave.'}
+                  </p>
+                  <button
+                    onClick={() => setActieveMapId(null)}
+                    className="text-[14px] font-semibold text-[#007AFF] hover:text-[#0066D6] transition-colors"
+                  >
+                    Toon alle notities
+                  </button>
+                </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
                   <SearchX size={40} className="text-gray-300" />
@@ -522,8 +630,9 @@ export default function NotesApp() {
         {/* Mobiele navigatie (verborgen op desktop) */}
         <BottomBar
           weergave={weergave}
-          onWeergaveChange={setWeergave}
-          onMappen={() => setPlaceholder('mappen')}
+          mapFilterActief={mapFilterActief}
+          onWeergaveChange={gaNaarWeergave}
+          onMappen={() => setMapKiezerOpen(true)}
         />
       </div>
 
@@ -544,6 +653,7 @@ export default function NotesApp() {
         <NotitieDetail
           notitie={detailNotitie}
           labels={labels}
+          mappen={gesorteerdeMappen}
           onWijzig={handleWijzigNotitie}
           onVerwijder={handleVerwijderNotitie}
           onSluit={sluitDetail}
@@ -555,6 +665,22 @@ export default function NotesApp() {
         onOpslaan={handleOpslaanLabel}
         onVerwijder={handleVerwijderLabel}
         onSluit={() => setLabelBeheerOpen(false)}
+      />
+      <MapKiezer
+        open={mapKiezerOpen}
+        mappen={gesorteerdeMappen}
+        actieveMapId={mapFilterActief ? actieveMapId : null}
+        onKies={kiesMapFilter}
+        onBeheer={() => { setMapKiezerOpen(false); setMapBeheerOpen(true) }}
+        onSluit={() => setMapKiezerOpen(false)}
+      />
+      <MapBeheer
+        open={mapBeheerOpen}
+        mappen={gesorteerdeMappen}
+        aantalPerMap={aantalPerMap}
+        onOpslaan={handleOpslaanMap}
+        onVerwijder={handleVerwijderMap}
+        onSluit={() => setMapBeheerOpen(false)}
       />
       {placeholder && (
         <PlaceholderModal
