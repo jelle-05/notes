@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geen verbinding — Notities</title>
+  <link rel="icon" href="/icon.svg">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f2f2f7;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-font-smoothing: antialiased;
+    }
+    .kaart {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .icoon { font-size: 56px; margin-bottom: 1.25rem; }
+    h1 { font-size: 20px; font-weight: 600; color: #1c1c1e; margin-bottom: 0.5rem; }
+    p { font-size: 15px; color: #8e8e93; line-height: 1.5; margin-bottom: 1.75rem; }
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 13px 0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:active { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <div class="kaart">
+    <div class="icoon">📵</div>
+    <h1>Geen verbinding</h1>
+    <p>Controleer je internetverbinding en probeer opnieuw.</p>
+    <button onclick="window.location.reload()">Opnieuw proberen</button>
+  </div>
+</body>
+</html>

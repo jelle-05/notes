@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1c1c1e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  background-color: #ffffff;
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, var(--font-geist-sans), 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* Duw content onder de statusbalk; witte achtergrond vult de safe area */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Voeg ruimte toe onder de home indicator; bg-white van BottomBar vult die ruimte */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
