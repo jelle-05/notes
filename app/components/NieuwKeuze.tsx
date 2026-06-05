@@ -27,8 +27,8 @@ export default function NieuwKeuze({ open, onKies, onSluit }: Props) {
           </button>
         </div>
 
-        {/* Keuzes */}
-        <div className="px-4 pt-4 pb-6 space-y-2 safe-area-bottom">
+        {/* Keuzes — pb via calc: .safe-area-bottom zou een Tailwind-pb overschrijven (0px op desktop) */}
+        <div className="px-4 pt-4 space-y-2" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
           <button
             onClick={() => onKies('notitie')}
             className="w-full flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3.5 text-left transition-colors"
