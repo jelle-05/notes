@@ -2,7 +2,7 @@
 
 Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen en archief. Zusterproject van de [agenda-app](https://agenda.jellebol.nl) en gebouwd op dezelfde stack en stijl (iOS-geïnspireerd, licht thema, Nederlands).
 
-> Status: **Fase 9 afgerond** — polish, toegankelijkheid en app-icoon. Zie [fases.md](fases.md) voor het volledige bouwplan.
+> Status: **Fase 9 afgerond** — polish, toegankelijkheid en app-icoon. Zie [fases.md](fases.md) voor het volledige bouwplan. **TWA Fase 1 (PWA-readiness) afgerond** — zie [twa.md](twa.md) en de sectie [PWA & Android TWA](#pwa--android-twa) hieronder.
 
 ## Features
 
@@ -27,6 +27,16 @@ Backend:      Supabase (PostgreSQL + Auth + Realtime) — gedeeld project met de
 Hosting:      Vercel (notes.jellebol.nl)
 PWA:          manifest + service worker (offline fallback)
 ```
+
+## PWA & Android TWA
+
+De app is PWA-ready: manifest (`app/manifest.ts`, incl. maskable icon en `lang`/`dir`), service worker met offline-fallback (`public/sw.js` + `public/offline.html`) en consistente theme-color. Het plan om de app als Android-app (Trusted Web Activity, privé-APK via Bubblewrap) te draaien staat in [twa.md](twa.md) — **TWA Fase 1 (readiness-check) is afgerond**; Fase 2+ (push, wrapper) wacht op de open vragen in twa.md §12.
+
+Zelf checken:
+
+- Chrome DevTools → **Application → Manifest**: geen warnings, "Installable" (op de live URL of `npm run dev`).
+- Offline-fallback: DevTools → Network → Offline → navigeren toont `offline.html`.
+- Na een wijziging aan `public/icon.svg`: `node scripts/generate-icons.mjs` draaien (genereert de PNG-iconen opnieuw).
 
 ## Lokaal draaien
 

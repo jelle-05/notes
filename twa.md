@@ -24,7 +24,7 @@ Wat er al staat (na Fase 0–9):
 | Onderdeel | Status |
 |---|---|
 | Next.js | 16 (App Router, Turbopack), TypeScript strict, Tailwind v4 |
-| Manifest | ✅ `app/manifest.ts` → `/manifest.webmanifest`: naam "Notities", `display: standalone`, `start_url: '/'`, `theme/background: #ffffff`, icons 192/512/maskable |
+| Manifest | ✅ `app/manifest.ts` → `/manifest.webmanifest`: naam "Notities", `display: standalone`, `orientation: portrait`, `start_url: '/'`, `lang: nl`, `dir: ltr`, `theme/background: #ffffff`, icons svg/192/512/maskable |
 | Icons | ✅ `public/icon.svg` is de ene bron; `scripts/generate-icons.mjs` genereert `icon-192/512.png`, `icon-maskable.png` (full-bleed `#FFCC00`) en `apple-touch-icon.png`; favicon via `metadata.icons` in `app/layout.tsx` |
 | Service worker | ✅ `public/sw.js`: cache-first voor `/_next/static/`, offline-fallback (`offline.html`). ❌ **Geen** `push`/`notificationclick`-handlers |
 | Instellingen-tab | ✅ `app/components/InstellingenMenu.tsx` (modal via sidebar + profielmenu), nu één sectie **Archief** — uitbreidbaar met een sectie **Pushmeldingen** |
@@ -178,8 +178,17 @@ Aanpassingen in `D:\jelle\notes` (volgorde ≈ TWA Fase 1 + 2):
 
 ## 11. Faseplanning
 
-### TWA Fase 1 — PWA readiness
-Manifest/icons/sw verifiëren (vrijwel klaar na Fase 9), installability-check in Chrome, eventuele manifest-finetuning (`orientation`, `lang`). *Klein — vooral controle.*
+### TWA Fase 1 — PWA readiness ✅ afgerond
+
+Readiness-check uitgevoerd; bevindingen:
+
+- **Manifest** compleet voor TWA: `name/short_name: 'Notities'`, `id/start_url/scope: '/'`, `display: standalone`, `orientation: portrait`, theme/background `#ffffff`, icons svg + 192 + 512 + maskable. `lang: 'nl'` en `dir: 'ltr'` toegevoegd (enige code-wijziging in deze fase).
+- **Icons** OK: alle manifest-paden verwijzen naar bestaande bestanden in `public/`; de maskable (full-bleed `#FFCC00`, content 410/512 px) blijft binnen de Android-veiligheidszone. Favicon en apple-touch-icon via `metadata.icons` kloppen.
+- **Service worker + offline** OK: `notes-v1`, precache `offline.html`, cache-first voor `/_next/static/`, network-first navigatie met offline-fallback, oude caches opgeruimd bij activate. Push/notificationclick-handlers kunnen in Fase 2 als extra listeners erbij (incl. cache-bump naar `notes-v2`) zonder de offline-functionaliteit te raken.
+- **Layout/metadata** consistent: `lang="nl"` op `<html>`, `viewport.themeColor` = manifest-`theme_color` (`#ffffff`), `viewportFit: 'cover'` voor safe-areas.
+- **HTTPS/domein** OK: Vercel op `https://notes.jellebol.nl`.
+- **`next.config.ts` is leeg** — prima; Vercel serveert `public/.well-known/assetlinks.json` straks gewoon als JSON. Bij Fase 3 live verifiëren (200 + `Content-Type: application/json`); alleen bij problemen een `headers()`-regel toevoegen.
+- ⏳ **Handmatige check** (Jelle): Chrome DevTools → Application → Manifest moet "Installable" tonen zonder warnings (live URL of `npm run dev`).
 
 ### TWA Fase 2 — Push basis
 VAPID-keys genereren (env-vars in Vercel + `.env.local`), `notes_push_subscriptions`-tabel + RLS in `supabase/schema.sql`, `web-push`-dependency, sw.js push/notificationclick-handlers, `lib/pushUtils.ts`, API-routes `/api/push/subscribe` + `/api/push/test`, en de sectie **Pushmeldingen** met **Test pushmelding**-knop in `InstellingenMenu.tsx`. Alles naar agenda-patroon.
@@ -208,4 +217,4 @@ Reminders per note, app-event-pushes, Vercel-cron-scheduler (agenda-patroon), te
 
 ---
 
-*Status: plan opgesteld, nog niets gebouwd. Volgende stap: open vragen beantwoorden → TWA Fase 1 (PWA readiness-check).*
+*Status: TWA Fase 1 (PWA readiness) ✅ afgerond — manifest aangevuld met `lang`/`dir`, verder alles al in orde. Volgende stap: open vragen (§12) beantwoorden → TWA Fase 2 (push-basis) en/of Fase 3 (wrapper); vragen 5–8 zijn nodig vóór Fase 2, vragen 1–4 + 9–10 vóór Fase 3.*

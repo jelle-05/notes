@@ -171,3 +171,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 9 — polish & a11y (favicon/app-icon, focus-visible, Escape, safe-area in sheets, reduced motion)
 - ⏭️ Fase 10 — testen, documentatie en oplevering
 - 📋 Toekomst: Android TWA (privé-APK) + pushmeldingen — plan in `twa.md`
+  - ✅ TWA Fase 1 — PWA-readiness-check: manifest aangevuld met `lang`/`dir`, icons/sw/offline-fallback geverifieerd (bevindingen in twa.md §11)
+  - ⏳ TWA Fase 2 (push-basis) en Fase 3 (Bubblewrap-wrapper, in een map buiten deze repo) wachten op de open vragen in twa.md §12
