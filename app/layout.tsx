@@ -9,6 +9,16 @@ const geist = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Notities',
   description: 'Persoonlijke notities en lijstjes',
+  // Zelfde logo overal: browser-tab (SVG + PNG-fallback), iOS-beginscherm
+  // (apple-touch) en de PWA-manifest-icons komen allemaal uit public/icon.svg
+  // (PNG's gegenereerd via scripts/generate-icons.mjs).
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

@@ -5,6 +5,7 @@ import { Archive, ArchiveRestore, Check, ChevronDown, ChevronUp, Circle, CheckCi
 import type { Notitie, LijstItem, Label, NotitieMap } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
 import { eventKleuren } from '@/lib/kleuren'
+import { useEscape } from '@/lib/useEscape'
 import KopieerKnop from './KopieerKnop'
 import LabelPill from './LabelPill'
 import MapIcoon from './MapIcoon'
@@ -50,6 +51,9 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onArc
   }, [notitie.id])
 
   useEffect(() => () => { if (bevestigTimer.current) clearTimeout(bevestigTimer.current) }, [])
+
+  // Escape sluit de editor (zelfde nette afronding als "Klaar": flush + opruimen).
+  useEscape(true, onSluit)
 
   const isLijst = draft.type === 'lijst'
 
@@ -136,7 +140,7 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onArc
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[480px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div role="dialog" aria-modal="true" aria-label={isLijst ? 'Lijst' : 'Notitie'} className="relative w-full sm:w-[480px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100 shrink-0">
           <div className="w-28">
@@ -151,7 +155,7 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onArc
               aria-label={bewerkModus ? 'Verberg opties' : 'Toon map, labels en verwijderen'}
               aria-pressed={bewerkModus}
               className={[
-                'p-1.5 rounded-full transition-colors',
+                'p-2.5 -m-1 rounded-full transition-colors',
                 bewerkModus ? 'bg-blue-50 text-[#007AFF]' : 'text-gray-400 hover:text-[#007AFF]',
               ].join(' ')}
             >
@@ -164,7 +168,7 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onArc
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3 modal-safe-bottom">
           {/* Titel */}
           <div className="bg-gray-50 rounded-xl px-4 py-3">
             <input

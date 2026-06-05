@@ -2,6 +2,7 @@
 
 import { FileText, ListChecks, X } from 'lucide-react'
 import type { NotitieType } from '@/types'
+import { useEscape } from '@/lib/useEscape'
 
 interface Props {
   open: boolean
@@ -11,18 +12,19 @@ interface Props {
 
 // Keuzemodal bij ＋: gewone notitie of afvinkbare lijst.
 export default function NieuwKeuze({ open, onKies, onSluit }: Props) {
+  useEscape(open, onSluit)
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="Nieuw" className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100">
           <div className="w-16" />
           <h2 className="text-[15px] font-semibold text-gray-900">Nieuw</h2>
-          <button onClick={onSluit} className="w-16 flex justify-end text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onSluit} aria-label="Sluiten" className="w-16 flex justify-end py-3 -my-3 text-gray-400 hover:text-gray-600 transition-colors">
             <X size={18} />
           </button>
         </div>

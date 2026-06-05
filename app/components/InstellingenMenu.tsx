@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Instellingen } from '@/types'
 import { MIN_ARCHIEF_DAGEN, MAX_ARCHIEF_DAGEN, clampArchiefDagen } from '@/lib/archief'
+import { useEscape } from '@/lib/useEscape'
 
 interface Props {
   open: boolean
@@ -26,6 +27,8 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
     setDagenTekst(String(instellingen.autoArchiefDagen))
     setDagenHint('')
   }, [open, instellingen.autoArchiefDagen])
+
+  useEscape(open, onSluit)
 
   if (!open) return null
 
@@ -56,7 +59,7 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div role="dialog" aria-modal="true" aria-label="Instellingen" className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100 shrink-0">
           <div className="w-20" />
@@ -67,7 +70,7 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3 modal-safe-bottom">
           <p className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold px-1">Archief</p>
 
           <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-200">

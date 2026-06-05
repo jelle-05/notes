@@ -434,19 +434,31 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** alles strak, iOS-waardig en zonder regressies.
 
+**Status: afgerond** (klik-test op echte apparaten door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- **Favicon/app-icon**: `public/icon.svg` is de ene bron voor álle iconen. `metadata.icons` in `app/layout.tsx` zet de browser-tab-favicon (SVG + PNG-fallback, geen `.ico` nodig) én de apple-touch-icon; het manifest gebruikte dezelfde assets al → favicon = beginscherm-icoon. `scripts/generate-icons.mjs` genereert nu ook `public/apple-touch-icon.png` (180×180, full-bleed `#FFCC00` — iOS rondt zelf af en ondersteunt geen transparante hoeken).
+- **Keyboard**: Escape sluit alle modals (mini-hook `lib/useEscape.ts`); kaarten waren al Enter/Spatie-bedienbaar.
+- **Focus**: globale `:focus-visible`-outline (blauw, 2px offset) op alle interactieve elementen in `globals.css` — alleen zichtbaar bij toetsenbordnavigatie.
+- **Reduced motion**: `prefers-reduced-motion: reduce` schakelt transities/animaties praktisch uit (globale regel).
+- **Safe-area**: utility `.modal-safe-bottom` (`1rem + env(safe-area-inset-bottom)`) op de body van alle bottom-sheets — content komt op iPhone niet meer onder de home-indicator.
+- **Dialogen**: `role="dialog"` + `aria-modal` + `aria-label` op alle modals.
+
 ### Taken
-- [ ] iOS-stijl verfijnen: zachte kaarten, afgeronde hoeken, subtiele schaduwen, rustige kleuren, consistente spacing.
-- [ ] Hover/focus/active states op alle interactieve elementen; zichtbare focus-ring voor toetsenbord.
-- [ ] Touch-targets ≥ 44px op mobiel; checkboxes prettig aantikbaar.
-- [ ] Alle empty/loading/error states nalopen.
-- [ ] Safe-area gedrag op iOS (notch/home-indicator) controleren.
-- [ ] Kopieerknop + feedback-states verifiëren op desktop, Android Chrome en iOS Safari (incl. PWA standalone).
-- [ ] Modals/sheets/forms/filters op kleine schermen checken; geen kapotte sidebar op mobiel.
-- [ ] Toegankelijkheid: aria-labels op icon-knoppen, contrast, `prefers-reduced-motion`.
-- [ ] Geen layout-regressies tussen weergaven.
+- [x] iOS-stijl nagelopen: kaarten zonder schaduw (eerdere polish-ronde), afgeronde hoeken, rustige kleuren en spacing consistent over alle weergaven.
+- [x] Hover/focus/active states: globale focus-visible-ring; bestaande hover/active states gecontroleerd en consistent bevonden.
+- [x] Touch-targets: TopBar-＋ en potlood-knop (detail) vergroot; sluitkruisjes (NieuwKeuze/ProfielMenu) groter tapvlak via padding/negatieve marge; checklist-knoppen waren al ruim.
+- [x] Empty/loading/error states nagelopen — overal aanwezig en consistent (EmptyState-component, "Geen resultaten", "Deze map is leeg", "Archief is leeg", laadscherm, kopieer-foutstate, validatiehints).
+- [x] Safe-area op iOS: `.modal-safe-bottom` op alle sheet-bodies; BottomBar had al `safe-area-bottom`; NieuwKeuze houdt zijn eigen calc.
+- [x] Kopieerknop geverifieerd: tekst synchroon in de klikactie (iOS-eis), Clipboard API + execCommand-fallback en feedback-states intact — geen regressie door de bewerk-modus. Echte test op iOS Safari/PWA door Jelle.
+- [x] Modals/sheets/filters op kleine schermen gecheckt (max-h + overflow-y-auto, horizontaal scrollende pills zonder pagina-overflow, truncates op lange titels/labels/mapnamen; TopBar-titel `min-w-0`).
+- [x] Toegankelijkheid: aria-labels op alle icon-only knoppen, `role="dialog"`/`aria-modal`, Escape-sluiten, focus-visible, `prefers-reduced-motion`.
+- [x] **Favicon/app-icon** ingesteld en geverifieerd (icon-links in de head, alle assets 200 in dev).
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
+- [ ] **Handmatig (Jelle):** favicon in de browser-tab na deploy, add-to-homescreen op iPhone (zelfde gele logo), safe-area onderin sheets op iPhone, kopiëren op iOS Safari/PWA.
 
 ### Resultaat
-> Een afgewerkte app die aanvoelt als de agenda-app.
+> Een afgewerkte app die aanvoelt als de agenda-app, met een eigen herkenbaar app-icoon.
 
 ---
 

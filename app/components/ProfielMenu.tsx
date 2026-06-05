@@ -1,6 +1,7 @@
 'use client'
 
 import { LogOut, Settings, X } from 'lucide-react'
+import { useEscape } from '@/lib/useEscape'
 
 interface Props {
   open: boolean
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ProfielMenu({ open, email, onInstellingen, onUitloggen, onSluit }: Props) {
+  useEscape(open, onSluit)
   if (!open) return null
 
   const prefix = email.split('@')[0] ?? ''
@@ -21,12 +23,12 @@ export default function ProfielMenu({ open, email, onInstellingen, onUitloggen, 
     <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-end p-0 sm:p-2 sm:pt-14">
       <div className="absolute inset-0 bg-black/20" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-72 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="Profiel" className="relative w-full sm:w-72 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100">
           <div className="w-16" />
           <h2 className="text-[15px] font-semibold text-gray-900">Profiel</h2>
-          <button onClick={onSluit} className="w-16 flex justify-end text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onSluit} aria-label="Sluiten" className="w-16 flex justify-end py-3 -my-3 text-gray-400 hover:text-gray-600 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -52,7 +54,7 @@ export default function ProfielMenu({ open, email, onInstellingen, onUitloggen, 
         </div>
 
         {/* Uitloggen */}
-        <div className="p-4">
+        <div className="p-4 modal-safe-bottom">
           <button
             onClick={() => { onUitloggen(); onSluit() }}
             className="w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl py-3 text-[15px] font-medium transition-colors"

@@ -12,13 +12,13 @@ interface Props {
 export default function TopBar({ titel, onNieuw, onProfielMenu, gebruikerEmail }: Props) {
   return (
     <header className="flex items-center justify-between px-3 h-12 border-b border-gray-200 bg-white shrink-0 gap-2">
-      <h1 className="text-[15px] font-semibold text-gray-900 truncate">{titel}</h1>
+      <h1 className="text-[15px] font-semibold text-gray-900 truncate min-w-0">{titel}</h1>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={onNieuw}
           aria-label="Nieuwe notitie"
-          className="p-1.5 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
         >
           <Plus size={18} />
         </button>

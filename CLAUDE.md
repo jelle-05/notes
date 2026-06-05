@@ -9,6 +9,7 @@ Persoonlijke notes-app (notities + afvinkbare lijstjes, labels, mappen, archief)
 - Lucide React (iconen), npm
 - Supabase: PostgreSQL + Auth + Realtime — **zelfde Supabase-project als de agenda-app** (gedeelde users; eigen tabellen met `notes_`-prefix, zie fases.md Fase 2)
 - Vercel, domein `notes.jellebol.nl`; PWA via `app/manifest.ts` + `public/sw.js`
+- **Iconen**: `public/icon.svg` is de ene bron — `scripts/generate-icons.mjs` genereert de PNG's (192/512/maskable/apple-touch); `metadata.icons` in `app/layout.tsx` zet favicon (SVG + PNG-fallback) en apple-touch-icon, het manifest gebruikt dezelfde assets → favicon = beginscherm-icoon
 
 ## Conventies
 
@@ -16,7 +17,8 @@ Persoonlijke notes-app (notities + afvinkbare lijstjes, labels, mappen, archief)
 - Alle componenten `'use client'`; state op rootniveau in `NotesApp.tsx`, props drilling — geen context/Zustand.
 - Modals: `fixed inset-0` + backdrop; bottom-sheet op mobiel (`items-end`, `rounded-t-2xl`), gecentreerd op desktop (`sm:items-center`, `rounded-2xl`).
 - Responsive: mobile-first, `sm:` (640px). Desktop = Sidebar, mobiel = BottomBar (`sm:hidden` / `hidden sm:flex`).
-- Stijl: iOS-geïnspireerd licht thema, accent `#007AFF`, safe-area CSS (`env(safe-area-inset-*)`).
+- Stijl: iOS-geïnspireerd licht thema, accent `#007AFF`, safe-area CSS (`env(safe-area-inset-*)`; sheet-bodies via `.modal-safe-bottom`).
+- A11y (Fase 9): globale `:focus-visible`-outline + `prefers-reduced-motion` in `globals.css`; modals hebben `role="dialog"`/`aria-modal` en sluiten met Escape (`lib/useEscape.ts`); aria-labels op icon-only knoppen.
 - Offline-first (vanaf Fase 2): localStorage direct tonen → achtergrond-sync → Supabase Realtime (agenda-patroon, zie `D:\jelle\agenda\app\lib\opslag.ts` en `supabaseOpslag.ts`).
 
 ## Structuur
@@ -49,6 +51,7 @@ app/
     kleuren.ts         — eventKleuren(), contrastRatio(), alpha-helpers (kopie agenda)
     helpers.ts         — factories, isLeeg(), formatDatumKort(), metGewijzigdOp()
     archief.ts         — vindAutoArchiefKandidaten() + clampArchiefDagen() (pure functies)
+    useEscape.ts       — Escape sluit de open modal
   types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
 supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
 scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
@@ -165,4 +168,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 6 — mappen (beheer, sidebar-sectie + mobiele sheet, map kiezen per note, veilige verwijderflow)
 - ✅ Fase 7 — archief (archiveren via detail, terugzetten via kaart/detail, gedempte archiefweergave)
 - ✅ Fase 8 — instellingen (InstellingenMenu) + automatisch archiveren (client-side bij app-start)
-- ⏭️ Fase 9 — polish, responsive en UX
+- ✅ Fase 9 — polish & a11y (favicon/app-icon, focus-visible, Escape, safe-area in sheets, reduced motion)
+- ⏭️ Fase 10 — testen, documentatie en oplevering

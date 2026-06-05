@@ -3,6 +3,7 @@
 import { Check, FolderMinus, Pencil, StickyNote } from 'lucide-react'
 import type { NotitieMap } from '@/types'
 import { GEEN_MAP_FILTER } from '@/types'
+import { useEscape } from '@/lib/useEscape'
 import MapIcoon from './MapIcoon'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 // mapfilter of open het mappenbeheer. Op desktop staat dezelfde lijst in de
 // Sidebar; deze sheet werkt daar ook, maar wordt alleen mobiel geopend.
 export default function MapKiezer({ open, mappen, actieveMapId, onKies, onBeheer, onSluit }: Props) {
+  useEscape(open, onSluit)
   if (!open) return null
 
   function rij(label: string, icon: React.ReactNode, actief: boolean, onClick: () => void) {
@@ -39,7 +41,7 @@ export default function MapKiezer({ open, mappen, actieveMapId, onKies, onBeheer
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div role="dialog" aria-modal="true" aria-label="Mappen kiezen" className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100 shrink-0">
           <div className="w-20" />
@@ -50,7 +52,7 @@ export default function MapKiezer({ open, mappen, actieveMapId, onKies, onBeheer
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3 modal-safe-bottom">
           <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-200">
             {rij(
               'Alle notities',

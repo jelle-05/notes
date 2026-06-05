@@ -35,3 +35,27 @@ body {
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Bottom-sheets: content vrijhouden van de iOS home-indicator
+   (1rem basis-padding + de safe-area-inset; op desktop gewoon 1rem) */
+.modal-safe-bottom {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+/* Zichtbare keyboard-focus op alle interactieve elementen (toetsenbord-
+   navigatie); muis/touch triggert :focus-visible niet, dus geen visuele ruis */
+:where(button, a, input, textarea, select, [role='button']):focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+/* Reduced motion: transities en animaties praktisch uitschakelen */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

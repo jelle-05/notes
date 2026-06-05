@@ -2,7 +2,7 @@
 
 Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen en archief. Zusterproject van de [agenda-app](https://agenda.jellebol.nl) en gebouwd op dezelfde stack en stijl (iOS-geïnspireerd, licht thema, Nederlands).
 
-> Status: **Fase 8 afgerond** — instellingen + automatisch archiveren. Zie [fases.md](fases.md) voor het volledige bouwplan.
+> Status: **Fase 9 afgerond** — polish, toegankelijkheid en app-icoon. Zie [fases.md](fases.md) voor het volledige bouwplan.
 
 ## Features
 
@@ -59,7 +59,7 @@ Zonder deze stap blijft de app gewoon werken (offline-first via localStorage), m
 | `npm run build` | Productie-build |
 | `npm run start` | Productie-server |
 | `npm run lint` | ESLint |
-| `node scripts/generate-icons.mjs` | PWA-iconen (PNG) opnieuw genereren vanuit `public/icon.svg` |
+| `node scripts/generate-icons.mjs` | App-iconen (192/512/maskable/apple-touch PNG) opnieuw genereren vanuit `public/icon.svg` — dezelfde bron als de favicon |
 
 ## Structuur
 

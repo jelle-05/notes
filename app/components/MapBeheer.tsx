@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Ban, ChevronRight, Plus } from 'lucide-react'
 import type { NotitieMap } from '@/types'
 import { nieuweMap } from '@/lib/helpers'
+import { useEscape } from '@/lib/useEscape'
 import MapIcoon from './MapIcoon'
 
 // Zelfde 12 iOS-preset-kleuren als LabelBeheer.
@@ -44,6 +45,8 @@ export default function MapBeheer({ open, mappen, aantalPerMap, startMap, onOpsl
     setBewerk(startMap ? { ...startMap } : {})
     setVerwijderBevestig(false)
   }, [open, startMap])
+
+  useEscape(open, onSluit)
 
   if (!open) return null
 
@@ -97,7 +100,7 @@ export default function MapBeheer({ open, mappen, aantalPerMap, startMap, onOpsl
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div role="dialog" aria-modal="true" aria-label="Mappen" className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100 shrink-0">
           {modus === 'bewerk' ? (
@@ -128,7 +131,7 @@ export default function MapBeheer({ open, mappen, aantalPerMap, startMap, onOpsl
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3 modal-safe-bottom">
           {modus === 'lijst' ? (
             <>
               {/* Mappenlijst */}

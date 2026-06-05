@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
 import type { Label } from '@/types'
 import { contrastRatio, eventKleuren, hex6Van, alphaVan, metAlpha } from '@/lib/kleuren'
+import { useEscape } from '@/lib/useEscape'
 
 const PRESET_KLEUREN = [
   '#FF3B30', '#FF6B00', '#FF9500', '#FFCC00',
@@ -28,6 +29,7 @@ export default function LabelBeheer({ open, labels, onOpslaan, onVerwijder, onSl
   const bevestigTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => { if (bevestigTimer.current) clearTimeout(bevestigTimer.current) }, [])
+  useEscape(open, onSluit)
 
   if (!open) return null
 
@@ -88,7 +90,7 @@ export default function LabelBeheer({ open, labels, onOpslaan, onVerwijder, onSl
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onSluit} />
 
-      <div className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div role="dialog" aria-modal="true" aria-label="Labels" className="relative w-full sm:w-[400px] bg-white rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-gray-100 shrink-0">
           {modus === 'bewerk' ? (
@@ -119,7 +121,7 @@ export default function LabelBeheer({ open, labels, onOpslaan, onVerwijder, onSl
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3 modal-safe-bottom">
           {modus === 'lijst' ? (
             <>
               {/* Label lijst */}
