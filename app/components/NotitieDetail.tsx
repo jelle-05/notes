@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, Plus, Trash2, X } from 'lucide-react'
 import type { Notitie, LijstItem, Label } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
+import { eventKleuren } from '@/lib/kleuren'
 import KopieerKnop from './KopieerKnop'
 import LabelPill from './LabelPill'
 
@@ -89,6 +90,13 @@ export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, 
   const gekoppeldeLabels = draft.labelIds
     .map(id => labels.find(l => l.id === id))
     .filter((l): l is Label => l !== undefined)
+
+  // Het eerste label in labelIds bepaalt de achtergrondkleur van de kaart;
+  // kiezen = dat label vooraan zetten (geen extra opslagveld nodig).
+  function kiesKaartKleur(id: string) {
+    if (draft.labelIds[0] === id) return
+    wijzig({ labelIds: [id, ...draft.labelIds.filter(l => l !== id)] })
+  }
 
   // ── Verwijderen (twee-staps bevestiging) ─────────────────────────────────────
 
@@ -201,6 +209,41 @@ export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, 
               </div>
             ) : (
               !labelKiezerOpen && <p className="text-[13px] text-gray-300">Geen labels</p>
+            )}
+
+            {/* Kaartkleur: bij 2+ labels kiezen welk label de kaart kleurt */}
+            {gekoppeldeLabels.length >= 2 && (
+              <div className="pt-1 space-y-1.5">
+                <p className="text-[12px] text-gray-400">Welke kleur krijgt de kaart?</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {gekoppeldeLabels.map(label => {
+                    const actief = draft.labelIds[0] === label.id
+                    return (
+                      <button
+                        key={label.id}
+                        onClick={() => kiesKaartKleur(label.id)}
+                        aria-pressed={actief}
+                        className={[
+                          'inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-[12px] font-medium transition-colors',
+                          actief
+                            ? 'border-[#007AFF] text-gray-900'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300',
+                        ].join(' ')}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: eventKleuren(label).achtergrond,
+                            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+                          }}
+                        />
+                        <span className="truncate max-w-[120px]">{label.naam}</span>
+                        {actief && <Check size={12} className="text-[#007AFF] shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             )}
 
             {/* Keuzelijst: alle labels aan/uit togglen */}

@@ -53,12 +53,13 @@ export default function ZoekFilterBalk({ zoekterm, onZoek, labels, actieveLabelI
                 onClick={() => onToggleLabel(label.id)}
                 aria-pressed={actief}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium shrink-0 transition',
+                  // Border i.p.v. ring: een ring (box-shadow) wordt afgekapt door overflow-x-auto.
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] shrink-0 transition',
                   actief
-                    ? 'ring-2 ring-[#007AFF]/40'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300',
+                    ? 'font-semibold'
+                    : 'font-medium bg-white border-gray-200 text-gray-600 hover:border-gray-300',
                 ].join(' ')}
-                style={actief ? { backgroundColor: kleuren.achtergrond, color: kleuren.tekst } : undefined}
+                style={actief ? { backgroundColor: kleuren.achtergrond, color: kleuren.tekst, borderColor: kleuren.tekst } : undefined}
               >
                 {actief
                   ? <Check size={13} className="shrink-0" />

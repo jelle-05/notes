@@ -28,7 +28,7 @@ export default function NieuwKeuze({ open, onKies, onSluit }: Props) {
         </div>
 
         {/* Keuzes */}
-        <div className="p-4 space-y-2 safe-area-bottom">
+        <div className="px-4 pt-4 pb-6 space-y-2 safe-area-bottom">
           <button
             onClick={() => onKies('notitie')}
             className="w-full flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3.5 text-left transition-colors"

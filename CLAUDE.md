@@ -74,6 +74,13 @@ de basiskleur. Kaarten tonen max 3 pills + "+n"; verwijderde label-ids worden
 stil overgeslagen bij rendering. Label verwijderen stript het id uit alle notes
 (zonder gewijzigdOp-bump) — notes blijven altijd bestaan.
 
+**Kaartkleur**: een note met labels krijgt de achtergrondkleur van zijn
+**eerste** label (`labelIds[0]`, geen extra opslagveld); tekst op de kaart in
+`eventKleuren().tekst`, pills in de `opKleur`-variant (wit + basiskleur) zodat
+ze niet wegvallen. Bij 2+ labels verschijnt in de detailweergave de vraag
+"Welke kleur krijgt de kaart?" — kiezen zet dat label vooraan in `labelIds`.
+Kaarten hebben geen schaduw (alleen border).
+
 ## Zoeken & filteren (Fase 5)
 
 Volledig client-side als **afgeleide state**: één `useMemo` (`getoondeNotities`)

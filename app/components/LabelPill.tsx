@@ -8,14 +8,19 @@ interface Props {
   label: Label
   onVerwijder?: () => void   // toont een ×-knop (detailweergave)
   onClick?: () => void       // maakt de pill klikbaar (filteren vanaf een kaart)
+  opKleur?: boolean          // pill staat op een kaart in labelkleur → witte pill zodat hij niet wegvalt
 }
 
 // Compacte label-pill met de ingestelde kleuren (of een lichte tint als fallback).
-export default function LabelPill({ label, onVerwijder, onClick }: Props) {
-  const { achtergrond, tekst } = eventKleuren(label)
+export default function LabelPill({ label, onVerwijder, onClick, opKleur }: Props) {
+  const { accent, achtergrond, tekst } = eventKleuren(label)
 
   const klassen = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium max-w-[140px]'
-  const stijl = { backgroundColor: achtergrond, color: tekst }
+  // Op een gekleurde kaart: witte pill met de basiskleur als tekst — blijft
+  // zichtbaar ongeacht de kaartachtergrond (die vaak gelijk is aan de pillkleur).
+  const stijl = opKleur
+    ? { backgroundColor: 'rgba(255, 255, 255, 0.85)', color: accent }
+    : { backgroundColor: achtergrond, color: tekst }
 
   // Klikbare variant: button met stopPropagation zodat de kaart niet opent.
   if (onClick) {

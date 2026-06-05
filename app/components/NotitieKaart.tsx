@@ -3,6 +3,7 @@
 import { Circle, CheckCircle2, FileText, ListChecks } from 'lucide-react'
 import type { Notitie, Label } from '@/types'
 import { formatDatumKort } from '@/lib/helpers'
+import { eventKleuren } from '@/lib/kleuren'
 import LabelPill from './LabelPill'
 
 interface Props {
@@ -28,6 +29,11 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
     .map(id => labels.find(l => l.id === id))
     .filter((l): l is Label => l !== undefined)
 
+  // Het eerste label bepaalt de kaartkleur (kiesbaar in de detailweergave bij
+  // 2+ labels). Zonder labels blijft de kaart wit.
+  const kleurLabel = kaartLabels[0]
+  const kaartKleuren = kleurLabel ? eventKleuren(kleurLabel) : null
+
   return (
     <div
       role="button"
@@ -36,10 +42,24 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(notitie) }
       }}
-      className="cursor-pointer text-left w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col gap-2 hover:shadow hover:border-gray-300 active:bg-gray-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]"
+      className={[
+        'cursor-pointer text-left w-full rounded-2xl border p-4 flex flex-col gap-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]',
+        kaartKleuren
+          ? 'border-black/5'
+          : 'bg-white border-gray-200 hover:border-gray-300 active:bg-gray-50',
+      ].join(' ')}
+      style={kaartKleuren ? { backgroundColor: kaartKleuren.achtergrond } : undefined}
     >
       {/* Titel */}
-      <h3 className={`text-[15px] font-semibold truncate ${notitie.titel.trim() ? 'text-gray-900' : 'text-gray-400'}`}>
+      <h3
+        className={[
+          'text-[15px] font-semibold truncate',
+          kaartKleuren
+            ? (notitie.titel.trim() ? '' : 'opacity-50')
+            : (notitie.titel.trim() ? 'text-gray-900' : 'text-gray-400'),
+        ].join(' ')}
+        style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+      >
         {notitie.titel.trim() || 'Zonder titel'}
       </h3>
 
@@ -51,14 +71,29 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
               <li key={item.id} className="flex items-center gap-1.5 min-w-0">
                 {item.afgevinkt
                   ? <CheckCircle2 size={14} className="text-[#007AFF] shrink-0" />
-                  : <Circle size={14} className="text-gray-300 shrink-0" />}
-                <span className={`text-[13px] truncate ${item.afgevinkt ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                  : <Circle
+                      size={14}
+                      className={`shrink-0 ${kaartKleuren ? 'opacity-30' : 'text-gray-300'}`}
+                      style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+                    />}
+                <span
+                  className={[
+                    'text-[13px] truncate',
+                    kaartKleuren
+                      ? (item.afgevinkt ? 'opacity-50 line-through' : 'opacity-80')
+                      : (item.afgevinkt ? 'text-gray-400 line-through' : 'text-gray-600'),
+                  ].join(' ')}
+                  style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+                >
                   {item.tekst.trim() || '…'}
                 </span>
               </li>
             ))}
             {notitie.items.length > PREVIEW_ITEMS && (
-              <li className="text-[12px] text-gray-400 pl-[20px]">
+              <li
+                className={`text-[12px] pl-[20px] ${kaartKleuren ? 'opacity-60' : 'text-gray-400'}`}
+                style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+              >
                 +{notitie.items.length - PREVIEW_ITEMS} meer
               </li>
             )}
@@ -66,7 +101,10 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
         )
       ) : (
         notitie.inhoud.trim() && (
-          <p className="text-[13px] text-gray-600 line-clamp-4 whitespace-pre-line">
+          <p
+            className={`text-[13px] line-clamp-4 whitespace-pre-line ${kaartKleuren ? 'opacity-80' : 'text-gray-600'}`}
+            style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+          >
             {notitie.inhoud.trim()}
           </p>
         )
@@ -80,10 +118,14 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
               key={label.id}
               label={label}
               onClick={onLabelKlik ? () => onLabelKlik(label.id) : undefined}
+              opKleur={kaartKleuren !== null}
             />
           ))}
           {kaartLabels.length > MAX_PILLS && (
-            <span className="text-[11px] text-gray-400 font-medium">
+            <span
+              className={`text-[11px] font-medium ${kaartKleuren ? 'opacity-60' : 'text-gray-400'}`}
+              style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+            >
               +{kaartLabels.length - MAX_PILLS}
             </span>
           )}
@@ -91,7 +133,10 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
       )}
 
       {/* Footer */}
-      <div className="flex items-center gap-1.5 text-[12px] text-gray-400 mt-auto pt-1">
+      <div
+        className={`flex items-center gap-1.5 text-[12px] mt-auto pt-1 ${kaartKleuren ? 'opacity-70' : 'text-gray-400'}`}
+        style={kaartKleuren ? { color: kaartKleuren.tekst } : undefined}
+      >
         <TypeIcon size={13} className="shrink-0" />
         {isLijst && <span>{afgevinkt}/{notitie.items.length}</span>}
         <span className="ml-auto">{formatDatumKort(notitie.gewijzigdOp)}</span>
