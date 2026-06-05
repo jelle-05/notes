@@ -71,4 +71,5 @@ app/
   page.tsx      — rendert <NotesApp/>
 public/         — sw.js, offline.html, iconen
 fases.md        — gefaseerd bouwplan + open vragen
+twa.md          — plan voor Android TWA (privé-APK) + pushmeldingen
 ```

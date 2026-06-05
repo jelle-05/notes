@@ -170,3 +170,4 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 8 — instellingen (InstellingenMenu) + automatisch archiveren (client-side bij app-start)
 - ✅ Fase 9 — polish & a11y (favicon/app-icon, focus-visible, Escape, safe-area in sheets, reduced motion)
 - ⏭️ Fase 10 — testen, documentatie en oplevering
+- 📋 Toekomst: Android TWA (privé-APK) + pushmeldingen — plan in `twa.md`
