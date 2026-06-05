@@ -70,6 +70,8 @@ export default function NotesApp() {
   const [labelBeheerOpen, setLabelBeheerOpen] = useState(false)
   const [mapBeheerOpen, setMapBeheerOpen]     = useState(false)
   const [mapKiezerOpen, setMapKiezerOpen]     = useState(false)   // mobiele mappen-sheet
+  // Gezet via ⋯ achter een map in de sidebar: MapBeheer opent dan direct in bewerk-modus.
+  const [mapBewerkStart, setMapBewerkStart]   = useState<NotitieMap | null>(null)
 
   // Zoeken & filteren (client-side, afgeleide state — zie getoondeNotities)
   const [zoekterm, setZoekterm]               = useState('')
@@ -540,7 +542,8 @@ export default function NotesApp() {
         onWeergaveChange={gaNaarWeergave}
         onKiesMap={kiesMapFilter}
         onLabels={() => setLabelBeheerOpen(true)}
-        onMapBeheer={() => setMapBeheerOpen(true)}
+        onMapBeheer={() => { setMapBewerkStart(null); setMapBeheerOpen(true) }}
+        onMapBewerk={map => { setMapBewerkStart(map); setMapBeheerOpen(true) }}
         onInstellingen={() => setPlaceholder('instellingen')}
       />
 
@@ -671,16 +674,17 @@ export default function NotesApp() {
         mappen={gesorteerdeMappen}
         actieveMapId={mapFilterActief ? actieveMapId : null}
         onKies={kiesMapFilter}
-        onBeheer={() => { setMapKiezerOpen(false); setMapBeheerOpen(true) }}
+        onBeheer={() => { setMapKiezerOpen(false); setMapBewerkStart(null); setMapBeheerOpen(true) }}
         onSluit={() => setMapKiezerOpen(false)}
       />
       <MapBeheer
         open={mapBeheerOpen}
         mappen={gesorteerdeMappen}
         aantalPerMap={aantalPerMap}
+        startMap={mapBewerkStart}
         onOpslaan={handleOpslaanMap}
         onVerwijder={handleVerwijderMap}
-        onSluit={() => setMapBeheerOpen(false)}
+        onSluit={() => { setMapBeheerOpen(false); setMapBewerkStart(null) }}
       />
       {placeholder && (
         <PlaceholderModal

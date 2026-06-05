@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, Folder, FolderMinus, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, FolderMinus, Pencil, Plus, Trash2, X } from 'lucide-react'
 import type { Notitie, LijstItem, Label, NotitieMap } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
 import { eventKleuren } from '@/lib/kleuren'
 import KopieerKnop from './KopieerKnop'
 import LabelPill from './LabelPill'
+import MapIcoon from './MapIcoon'
 
 interface Props {
   notitie: Notitie
@@ -27,6 +28,9 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
   const [verwijderBevestig, setVerwijderBevestig] = useState(false)
   const [labelKiezerOpen, setLabelKiezerOpen] = useState(false)
   const [mapKiezerOpen, setMapKiezerOpen] = useState(false)
+  // Bewerk-modus: map, labels en verwijderen zijn verborgen tot je op het
+  // potlood tikt — de geopende note focust zo puur op de inhoud.
+  const [bewerkModus, setBewerkModus] = useState(false)
 
   const nieuwItemRef    = useRef<HTMLInputElement>(null)
   const bevestigTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -40,6 +44,7 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
     setVerwijderBevestig(false)
     setLabelKiezerOpen(false)
     setMapKiezerOpen(false)
+    setBewerkModus(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notitie.id])
 
@@ -139,7 +144,18 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
           <h2 className="text-[15px] font-semibold text-gray-900">
             {isLijst ? 'Lijst' : 'Notitie'}
           </h2>
-          <div className="w-28 text-right">
+          <div className="w-28 flex items-center justify-end gap-2">
+            <button
+              onClick={() => setBewerkModus(o => !o)}
+              aria-label={bewerkModus ? 'Verberg opties' : 'Toon map, labels en verwijderen'}
+              aria-pressed={bewerkModus}
+              className={[
+                'p-1.5 rounded-full transition-colors',
+                bewerkModus ? 'bg-blue-50 text-[#007AFF]' : 'text-gray-400 hover:text-[#007AFF]',
+              ].join(' ')}
+            >
+              <Pencil size={15} />
+            </button>
             <button onClick={onSluit} className="text-[#007AFF] text-sm font-semibold">
               Klaar
             </button>
@@ -201,6 +217,9 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
             </div>
           )}
 
+          {/* Map, labels en verwijderen: verborgen tot de bewerk-modus (potlood) */}
+          {bewerkModus && (<>
+
           {/* Map */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
@@ -232,7 +251,7 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
                       onClick={() => kiesMap(map.id)}
                       className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-gray-50 transition-colors"
                     >
-                      <Folder size={16} className="text-gray-400 shrink-0" />
+                      <MapIcoon map={map} size={22} />
                       <span className="flex-1 text-[14px] text-gray-900 text-left truncate">{map.naam}</span>
                       {draft.mapId === map.id && <Check size={16} className="text-[#007AFF] shrink-0" />}
                     </button>
@@ -345,6 +364,8 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
             <Trash2 size={16} />
             {verwijderBevestig ? 'Zeker weten?' : isLijst ? 'Verwijder lijst' : 'Verwijder notitie'}
           </button>
+
+          </>)}
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 'use client'
 
-import { Check, Folder, FolderMinus, Pencil, StickyNote } from 'lucide-react'
+import { Check, FolderMinus, Pencil, StickyNote } from 'lucide-react'
 import type { NotitieMap } from '@/types'
 import { GEEN_MAP_FILTER } from '@/types'
+import MapIcoon from './MapIcoon'
 
 interface Props {
   open: boolean
@@ -65,7 +66,7 @@ export default function MapKiezer({ open, mappen, actieveMapId, onKies, onBeheer
             )}
             {mappen.map(map => rij(
               map.naam,
-              <Folder size={18} className="text-gray-400 shrink-0" />,
+              <MapIcoon map={map} />,
               actieveMapId === map.id,
               () => onKies(map.id),
             ))}

@@ -1,8 +1,9 @@
 'use client'
 
-import { Archive, Calendar, Folder, FolderMinus, Plus, Settings, StickyNote, Tag } from 'lucide-react'
+import { Archive, Calendar, FolderMinus, MoreHorizontal, Plus, Settings, StickyNote, Tag } from 'lucide-react'
 import type { Weergave, NotitieMap } from '@/types'
 import { GEEN_MAP_FILTER } from '@/types'
+import MapIcoon from './MapIcoon'
 
 interface Props {
   weergave: Weergave
@@ -12,6 +13,7 @@ interface Props {
   onKiesMap: (id: string | null) => void
   onLabels: () => void
   onMapBeheer: () => void
+  onMapBewerk: (map: NotitieMap) => void   // ⋯ achter een map → direct bewerken
   onInstellingen: () => void
 }
 
@@ -24,7 +26,7 @@ const itemKlasse = (actief: boolean) => [
 // Mappen staan als eigen sectie onder de navigatie: klik = filteren op die map.
 export default function Sidebar({
   weergave, mappen, actieveMapId,
-  onWeergaveChange, onKiesMap, onLabels, onMapBeheer, onInstellingen,
+  onWeergaveChange, onKiesMap, onLabels, onMapBeheer, onMapBewerk, onInstellingen,
 }: Props) {
   const items: {
     key: string
@@ -84,12 +86,38 @@ export default function Sidebar({
                 <FolderMinus size={18} className={mapActief(GEEN_MAP_FILTER) ? 'text-[#007AFF]' : 'text-gray-400'} />
                 <span className="truncate">Geen map</span>
               </button>
-              {mappen.map(map => (
-                <button key={map.id} onClick={() => onKiesMap(map.id)} className={itemKlasse(mapActief(map.id))}>
-                  <Folder size={18} className={`shrink-0 ${mapActief(map.id) ? 'text-[#007AFF]' : 'text-gray-400'}`} />
-                  <span className="truncate">{map.naam}</span>
-                </button>
-              ))}
+              {mappen.map(map => {
+                const actief = mapActief(map.id)
+                return (
+                  // Rij = div met twee losse buttons (filter + ⋯ bewerk):
+                  // geneste buttons zijn invalid HTML.
+                  <div
+                    key={map.id}
+                    className={[
+                      'group flex items-center rounded-lg transition-colors',
+                      actief ? 'bg-blue-50' : 'hover:bg-gray-100',
+                    ].join(' ')}
+                  >
+                    <button
+                      onClick={() => onKiesMap(map.id)}
+                      className={[
+                        'flex-1 flex items-center gap-3 pl-3 py-2 min-w-0 text-[14px] font-medium transition-colors',
+                        actief ? 'text-[#007AFF]' : 'text-gray-700',
+                      ].join(' ')}
+                    >
+                      <MapIcoon map={map} actief={actief} />
+                      <span className="truncate">{map.naam}</span>
+                    </button>
+                    <button
+                      onClick={() => onMapBewerk(map)}
+                      aria-label={`Bewerk map ${map.naam}`}
+                      className="shrink-0 p-1.5 mr-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[#007AFF] transition-all"
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

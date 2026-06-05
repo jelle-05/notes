@@ -26,14 +26,16 @@ app/
   components/
     NotesApp.tsx       — hoofdcomponent: auth, data-state, sync, realtime, CRUD, modals
     NotitieGrid.tsx / NotitieKaart.tsx — kaartenoverzicht
-    NotitieDetail.tsx  — detailweergave + editor ineen (auto-save, eigen draft)
+    NotitieDetail.tsx  — detailweergave + editor ineen (auto-save, eigen draft);
+                         map/labels/verwijderen achter de potlood-knop (bewerk-modus)
     NieuwKeuze.tsx     — keuzemodal Notitie/Lijst bij ＋
     ZoekFilterBalk.tsx — zoekveld + label-filterpills boven het grid
     KopieerKnop.tsx    — kopieer-als-tekst met 2s feedback
     LabelBeheer.tsx    — labelbeheer (kopie agenda: presets, color picker, contrast-warning)
     LabelPill.tsx      — label-pill met eventKleuren()-kleurresolutie
-    MapBeheer.tsx      — mappenbeheer (LabelBeheer-patroon: lijst ↔ bewerk, twee-staps delete)
+    MapBeheer.tsx      — mappenbeheer (LabelBeheer-patroon: lijst ↔ bewerk, kleur, twee-staps delete)
     MapKiezer.tsx      — mobiele mappen-sheet (filter kiezen + naar beheer)
+    MapIcoon.tsx       — rond gekleurd mapicoon (kleur op lichtere tint)
     Sidebar.tsx        — desktop-navigatie + mappensectie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
@@ -97,10 +99,13 @@ checklist-itemteksten. Gearchiveerde notes zitten nooit in de resultaten.
 
 ## Mappen (Fase 6)
 
-Platte mappen, alleen een naam (de `kleur`-kolom blijft ongebruikt; geen
-`gewijzigd_op` — hernoemen is een hele-rij-upsert). Beheer via `MapBeheer`
-(LabelBeheer-patroon); desktop kiest een map in de Sidebar-sectie, mobiel via
-de `MapKiezer`-sheet vanaf de Mappen-tab. Mapfilter zit in `actieveMapId`:
+Platte mappen met naam + optionele kleur (geen `gewijzigd_op` — hernoemen is
+een hele-rij-upsert). De kleur kleurt het ronde mapicoon (`MapIcoon.tsx`:
+icoon in de kleur op een lichtere tint, border-radius 100px) in sidebar,
+kiezers en beheer. Beheer via `MapBeheer` (LabelBeheer-patroon, 12 presets +
+"geen kleur"); de ⋯-knop achter een mapnaam in de sidebar opent MapBeheer
+direct in bewerk-modus (`startMap`-prop). Desktop kiest een map in de
+Sidebar-sectie, mobiel via de `MapKiezer`-sheet vanaf de Mappen-tab. Mapfilter zit in `actieveMapId`:
 `null` = alles, sentinel `GEEN_MAP_FILTER` = notities zonder map, anders een
 map-id — AND met zoek/labels; actieve map = TopBar-titel + blauwe chip in de
 filterbalk. Map kiezen per note in `NotitieDetail` (sectie boven Labels) via
