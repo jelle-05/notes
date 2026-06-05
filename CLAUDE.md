@@ -24,7 +24,11 @@ Persoonlijke notes-app (notities + afvinkbare lijstjes, labels, mappen, archief)
 ```
 app/
   components/
-    NotesApp.tsx       — hoofdcomponent: auth, data-state, sync, realtime, modals
+    NotesApp.tsx       — hoofdcomponent: auth, data-state, sync, realtime, CRUD, modals
+    NotitieGrid.tsx / NotitieKaart.tsx — kaartenoverzicht
+    NotitieDetail.tsx  — detailweergave + editor ineen (auto-save, eigen draft)
+    NieuwKeuze.tsx     — keuzemodal Notitie/Lijst bij ＋
+    KopieerKnop.tsx    — kopieer-als-tekst met 2s feedback
     Sidebar.tsx        — desktop-navigatie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
@@ -34,7 +38,8 @@ app/
     supabase.ts        — Supabase client
     opslag.ts          — localStorage cache (offline-first)
     supabaseOpslag.ts  — CRUD + camelCase↔snake_case converters per tabel
-    helpers.ts         — factories: nieuweNotitie(), nieuwLijstItem(), metGewijzigdOp()
+    kopieer.ts         — notitieAlsTekst() + kopieerNaarKlembord() (met fallback)
+    helpers.ts         — factories, isLeeg(), formatDatumKort(), metGewijzigdOp()
   types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
 supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
 scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
@@ -49,6 +54,22 @@ scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
 - Alles per-user met RLS (`auth.uid() = user_id`); geen DB-triggers — timestamps zet de client.
 - Sync is **fail-open**: als tabellen/netwerk ontbreken draait de app door op localStorage.
 
+## Opslagflow notities (Fase 3)
+
+Auto-save, geen Opslaan-knop: wijziging → optimistisch in state + localStorage →
+**gedebouncede** Supabase-upsert (600 ms per note, laatste wint; flush bij sluiten).
+Volledig lege notes worden bij sluiten stil verwijderd. Verwijderen = twee-staps
+bevestiging. De detail-editor houdt een eigen draft (gereset op note-id) zodat
+realtime-herlaad een open editor nooit overschrijft.
+
+## Kopieerfunctie
+
+`KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
+lege regel + inhoud; checklists per regel `[x] item` / `[ ] item`. Geen
+labels/metadata. Clipboard API met textarea/execCommand-fallback; tekst wordt
+synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
+"Gekopieerd", nette foutmelding bij falen.
+
 ## Werkwijze
 
 - Werk fase voor fase volgens `fases.md`; vink taken daar af.
@@ -60,4 +81,5 @@ scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
 - ✅ Fase 0 — analyse agenda-app (zie fases.md)
 - ✅ Fase 1 — projectbasis + navigatie-shell + auth-skelet
 - ✅ Fase 2 — datamodel (`supabase/schema.sql`) + offline-first opslag/sync-laag
-- ⏭️ Fase 3 — notes/checklist-UI + kopieerfunctie
+- ✅ Fase 3 — notes/checklist-UI + kopieerfunctie (auto-save, debounced sync)
+- ⏭️ Fase 4 — labels (LabelBeheer uit agenda + pills + koppelen)

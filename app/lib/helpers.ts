@@ -37,3 +37,25 @@ export function nieuwLijstItem(tekst = ''): LijstItem {
 export function metGewijzigdOp(notitie: Notitie): Notitie {
   return { ...notitie, gewijzigdOp: nuIso() }
 }
+
+/** Is de notitie volledig leeg? (Wordt bij sluiten dan stil verwijderd.) */
+export function isLeeg(n: Notitie): boolean {
+  return !n.titel.trim()
+    && !n.inhoud.trim()
+    && n.items.every(item => !item.tekst.trim())
+}
+
+const NL_MAANDEN_KORT = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
+
+/** Korte datumweergave voor kaarten: "Vandaag", "Gisteren" of "5 jun". */
+export function formatDatumKort(iso: string): string {
+  const d = new Date(iso)
+  const nu = new Date()
+  const vandaag  = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate())
+  const die      = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const dagen = Math.round((vandaag.getTime() - die.getTime()) / 86_400_000)
+  if (dagen === 0) return 'Vandaag'
+  if (dagen === 1) return 'Gisteren'
+  const jaar = d.getFullYear() === nu.getFullYear() ? '' : ` ${d.getFullYear()}`
+  return `${d.getDate()} ${NL_MAANDEN_KORT[d.getMonth()]}${jaar}`
+}

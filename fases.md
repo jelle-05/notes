@@ -258,23 +258,28 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** de kern van de app — notes en lijstjes beheren, plus de kopieerfunctie.
 
+**Status: afgerond** (handmatige klik-test op desktop + iPhone nog door Jelle).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- **Auto-save** (iOS Notes-stijl, door Jelle gekozen): geen Opslaan-knop — elke wijziging wordt direct optimistisch opgeslagen (state + localStorage), met een **gedebouncede Supabase-upsert (600 ms, laatste wint)** zodat typen geen upsert per toetsaanslag geeft. Bij sluiten ("Klaar") wordt direct geflusht.
+- **Twee-staps verwijderknop** (door Jelle gekozen): "Verwijder notitie" → "Zeker weten?" (reset na 3 s) → pas dan echt weg.
+- Nieuwe note wordt direct gepersisteerd; een **volledig lege** note (geen titel/inhoud/items) wordt bij sluiten stil verwijderd (iOS Notes-gedrag).
+- De detail-editor werkt op een **eigen draft** (alleen gereset bij een andere note-id), zodat een realtime-herlaad de open editor nooit overschrijft.
+- ＋ opent eerst een keuzemodal **Notitie / Lijst** (`NieuwKeuze.tsx`); `NotitieDetail.tsx` is detailweergave en editor ineen (geen apart formulier — past bij auto-save).
+- Grid sorteert op `gewijzigdOp` aflopend.
+
 ### Taken
-- [ ] `NotitieKaart.tsx`: kaart met titel, preview (eerste regels inhoud / eerste checklist-items), label-pills (fase 4), zachte schaduw, afgeronde hoeken.
-- [ ] `NotitieGrid.tsx`: responsive grid van kaarten (1 kolom mobiel, 2-3+ desktop).
-- [ ] `NotitieFormulier.tsx`: modal (agenda-patroon: bottom-sheet mobiel / gecentreerd desktop) voor aanmaken/bewerken; type-keuze **Notitie** of **Lijst** bij aanmaken.
-- [ ] `ChecklistEditor.tsx`: items toevoegen (Enter = volgende item), bewerken, verwijderen, afvinken.
-- [ ] **Afvinken optimistisch** (acceptatiecriterium): checkbox togglet direct in lokale state, daarna localStorage + achtergrond-upsert. UI wacht nooit op netwerk of realtime-roundtrip.
-- [ ] Note-detailweergave bij klik op een kaart (zelfde modal of detail-sheet) met bewerk-, verwijder- en kopieeracties. `gewijzigdOp` bijwerken bij elke save (ook bij afvinken).
-- [ ] Verwijderen met bevestiging.
-- [ ] **Kopieerfunctie**:
-  - `lib/kopieer.ts` met `notitieAlsTekst(n: Notitie): string` en `kopieerNaarKlembord(tekst): Promise<boolean>`.
-  - Formaat notitie: `titel` + lege regel + `inhoud`; lege delen worden weggelaten. Puur plain text, geen markdown/HTML/metadata, geen labels of mapnaam.
-  - Formaat checklist: titel + lege regel, daarna per item één regel: `[x] tekst` (afgevinkt) of `[ ] tekst`.
-  - Klembord: eerst `navigator.clipboard.writeText` (vereist secure context); bij falen fallback via verborgen `<textarea>` + `document.execCommand('copy')` (met `setSelectionRange` voor iOS Safari).
-  - **iOS-eis**: de tekst-string synchroon in de onClick opbouwen — geen async werk vóór de clipboard-write, anders weigert Safari de actie buiten de user-gesture.
-  - `KopieerKnop.tsx`: kopieer-icon in de detailweergave; bij succes 2 seconden "Gekopieerd" + check-icon, daarna terug naar idle; bij falen korte foutmelding ("Kopiëren mislukt").
-- [ ] Empty state ("Nog geen notities" + ＋-hint), loading- en error-states.
-- [ ] Testen op desktop én mobiel (incl. kopiëren op iOS Safari).
+- [x] `NotitieKaart.tsx`: kaart met titel, preview (inhoud `line-clamp-4` / eerste 3 checklist-items + "+n meer"), afvink-teller (2/5), type-icoon, datum ("Vandaag"/"Gisteren"/"5 jun"), zachte schaduw, afgeronde hoeken, focus-ring.
+- [x] `NotitieGrid.tsx`: responsive grid (1 kolom mobiel → 4 op breed scherm).
+- [x] `NieuwKeuze.tsx` + `NotitieDetail.tsx` (i.p.v. NotitieFormulier/ChecklistEditor — zie keuzes): bottom-sheet mobiel / gecentreerd desktop, titel-input, auto-groeiende textarea (notitie) of checklist-editor (lijst).
+- [x] Checklist-items: toevoegen via vast "Nieuw item…"-veld (Enter voegt toe en houdt focus), tekst bewerken, verwijderen (X), afvinken (doorgestreept + blauwe check).
+- [x] **Afvinken optimistisch**: checkbox togglet direct in lokale state + localStorage; remote volgt gedebounced. UI wacht nooit op netwerk of realtime-roundtrip.
+- [x] Detailweergave bij klik op kaart, met kopieer- en verwijderacties. `gewijzigdOp` wordt bij elke wijziging bijgewerkt (via `metGewijzigdOp`).
+- [x] Verwijderen met twee-staps bevestiging.
+- [x] **Kopieerfunctie**: `lib/kopieer.ts` (`notitieAlsTekst` + `kopieerNaarKlembord` met Clipboard API → textarea/execCommand-fallback incl. `setSelectionRange` voor iOS) en `KopieerKnop.tsx` in de detail-header (2 s "Gekopieerd" ✓ / "Kopiëren mislukt" bij falen). Tekst wordt synchroon in de onClick opgebouwd (iOS user-gesture-eis). Formaat: titel + lege regel + inhoud, checklist-items als `[x] …` / `[ ] …` per regel; geen labels/metadata.
+- [x] Empty state ("Nog geen notities" + ＋-hint); loading-state ("Laden…"); sync-fouten zijn fail-open (cache blijft zichtbaar, fout in console).
+- [ ] **Handmatig (Jelle):** klik-test op desktop én mobiel — note + lijst maken, afvinken, kopiëren op iOS Safari controleren.
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
 
 ### Resultaat
 > Volledig werkende notes en boodschappenlijstjes met afvinken en kopiëren naar klembord.

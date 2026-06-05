@@ -1,19 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Archive, StickyNote } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
-import type { Weergave, Notitie, Label, NotitieMap, Instellingen } from '@/types'
+import type { Weergave, Notitie, NotitieType, Label, NotitieMap, Instellingen } from '@/types'
 import { STANDAARD_INSTELLINGEN } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { nieuweNotitie, isLeeg } from '@/lib/helpers'
 import {
-  laadNotities, slaAlleNotitiesOp,
+  laadNotities, slaNotitieOp, verwijderNotitie, slaAlleNotitiesOp,
   laadLabels, slaAlleLabelsOp,
   laadMappen, slaAlleMappenOp,
   laadInstellingen, slaInstellingenOp,
 } from '@/lib/opslag'
 import {
-  laadNotitiesVanSupabase, laadLabelsVanSupabase, laadMappenVanSupabase,
+  laadNotitiesVanSupabase, slaNotitieOpInSupabase, verwijderNotitieUitSupabase,
+  laadLabelsVanSupabase, laadMappenVanSupabase,
   laadInstellingenVanSupabase, uploadNaarSupabase,
 } from '@/lib/supabaseOpslag'
 import Sidebar from './Sidebar'
@@ -22,6 +24,9 @@ import BottomBar from './BottomBar'
 import LoginPagina from './LoginPagina'
 import ProfielMenu from './ProfielMenu'
 import PlaceholderModal from './PlaceholderModal'
+import NotitieGrid from './NotitieGrid'
+import NotitieDetail from './NotitieDetail'
+import NieuwKeuze from './NieuwKeuze'
 
 // Titels per weergave voor de TopBar.
 const WEERGAVE_TITELS: Record<Weergave, string> = {
@@ -31,14 +36,16 @@ const WEERGAVE_TITELS: Record<Weergave, string> = {
 }
 
 // Placeholder-modals voor functionaliteit uit latere fases (zie fases.md).
-type PlaceholderSoort = 'nieuw' | 'labels' | 'mappen' | 'instellingen' | null
+type PlaceholderSoort = 'labels' | 'mappen' | 'instellingen' | null
 
 const PLACEHOLDER_TITELS: Record<Exclude<PlaceholderSoort, null>, string> = {
-  nieuw:        'Nieuwe notitie',
   labels:       'Labels',
   mappen:       'Mappen',
   instellingen: 'Instellingen',
 }
+
+// Debounce-interval voor remote upserts tijdens het typen.
+const SYNC_DEBOUNCE_MS = 600
 
 export default function NotesApp() {
   // Auth
@@ -55,12 +62,17 @@ export default function NotesApp() {
   const [weergave, setWeergave]               = useState<Weergave>('alle')
   const [profielMenuOpen, setProfielMenuOpen] = useState(false)
   const [placeholder, setPlaceholder]         = useState<PlaceholderSoort>(null)
+  const [nieuwKeuzeOpen, setNieuwKeuzeOpen]   = useState(false)
+  const [detailNotitie, setDetailNotitie]     = useState<Notitie | null>(null)
+
+  // Debounced remote sync: per notitie één timer; de laatste versie wint.
+  const syncTimers  = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const pendingSync = useRef(new Map<string, Notitie>())
 
   // ── Sync-functies (agenda-patroon) ───────────────────────────────────────────
 
-  // Stille achtergrond-sync: update UI zonder spinner. Fail-open: zolang de
-  // SQL-migratie (supabase/schema.sql) nog niet gedraaid is of het netwerk
-  // ontbreekt, blijft de gecachte data gewoon zichtbaar.
+  // Stille achtergrond-sync: update UI zonder spinner. Fail-open: bij netwerk-
+  // of tabelproblemen blijft de gecachte data gewoon zichtbaar.
   async function achtergrondSync() {
     try {
       const [supNotities, supLabels, supMappen] = await Promise.all([
@@ -153,6 +165,92 @@ export default function NotesApp() {
     await supabase.auth.signOut()
   }
 
+  // ── Notitie CRUD (optimistisch lokaal + debounced remote) ────────────────────
+
+  // Plan een remote upsert; opeenvolgende wijzigingen binnen het debounce-venster
+  // worden samengevoegd (de laatste versie wint).
+  function planRemoteSync(n: Notitie) {
+    pendingSync.current.set(n.id, n)
+    const userId = gebruiker?.id
+    if (!userId) return
+
+    const bestaande = syncTimers.current.get(n.id)
+    if (bestaande) clearTimeout(bestaande)
+
+    syncTimers.current.set(n.id, setTimeout(() => {
+      syncTimers.current.delete(n.id)
+      const laatste = pendingSync.current.get(n.id)
+      pendingSync.current.delete(n.id)
+      if (laatste) {
+        slaNotitieOpInSupabase(laatste, userId)
+          .catch(err => console.error('Supabase notitie sync mislukt:', err))
+      }
+    }, SYNC_DEBOUNCE_MS))
+  }
+
+  // Stuur een eventueel wachtende wijziging direct naar Supabase (bij sluiten).
+  function flushRemoteSync(id: string) {
+    const timer = syncTimers.current.get(id)
+    if (timer) clearTimeout(timer)
+    syncTimers.current.delete(id)
+
+    const laatste = pendingSync.current.get(id)
+    pendingSync.current.delete(id)
+    const userId = gebruiker?.id
+    if (laatste && userId) {
+      slaNotitieOpInSupabase(laatste, userId)
+        .catch(err => console.error('Supabase notitie sync mislukt:', err))
+    }
+  }
+
+  // Ruim alle lopende sync-timers op bij unmount.
+  useEffect(() => {
+    const timers = syncTimers.current
+    return () => { timers.forEach(clearTimeout); timers.clear() }
+  }, [])
+
+  function maakNieuw(type: NotitieType) {
+    const n = nieuweNotitie(type)
+    setNotities(prev => slaNotitieOp(n, prev))
+    planRemoteSync(n)
+    setNieuwKeuzeOpen(false)
+    setDetailNotitie(n)
+  }
+
+  function handleWijzigNotitie(n: Notitie) {
+    setNotities(prev => slaNotitieOp(n, prev))
+    planRemoteSync(n)
+  }
+
+  function handleVerwijderNotitie(id: string) {
+    const timer = syncTimers.current.get(id)
+    if (timer) clearTimeout(timer)
+    syncTimers.current.delete(id)
+    pendingSync.current.delete(id)
+
+    setNotities(prev => verwijderNotitie(id, prev))
+    setDetailNotitie(null)
+    verwijderNotitieUitSupabase(id)
+      .catch(err => console.error('Supabase notitie verwijder sync mislukt:', err))
+  }
+
+  function sluitDetail() {
+    const open = detailNotitie
+    setDetailNotitie(null)
+    if (!open) return
+
+    // Pak de meest recente versie (pending wijziging of huidige state).
+    const huidige = pendingSync.current.get(open.id) ?? notities.find(n => n.id === open.id)
+    if (!huidige) return
+
+    if (isLeeg(huidige)) {
+      // Volledig lege notitie stil opruimen (iOS Notes-gedrag).
+      handleVerwijderNotitie(open.id)
+    } else {
+      flushRemoteSync(open.id)
+    }
+  }
+
   // ── Auth & data init (agenda-patroon) ────────────────────────────────────────
 
   useEffect(() => {
@@ -187,6 +285,7 @@ export default function NotesApp() {
         setLabels([])
         setMappen([])
         setInstellingen(STANDAARD_INSTELLINGEN)
+        setDetailNotitie(null)
         // klaar blijft true → loginpagina zichtbaar
       }
       // TOKEN_REFRESHED / USER_UPDATED: geen actie — data is al geladen
@@ -220,11 +319,18 @@ export default function NotesApp() {
     return () => { supabase.removeChannel(kanaal) }
   }, [gebruiker])
 
-  // Placeholder-teksten; tonen alvast de gesyncte aantallen uit Fase 2.
+  // Actieve (niet-gearchiveerde) notities, nieuwste wijziging eerst.
+  const actieveNotities = useMemo(
+    () => notities
+      .filter(n => !n.gearchiveerd)
+      .sort((a, b) => b.gewijzigdOp.localeCompare(a.gewijzigdOp)),
+    [notities],
+  )
+  const gearchiveerdeAantal = notities.length - actieveNotities.length
+
+  // Placeholder-teksten voor latere fases.
   function placeholderTekst(soort: Exclude<PlaceholderSoort, null>): string {
     switch (soort) {
-      case 'nieuw':
-        return 'Notities en lijstjes aanmaken komt in Fase 3.'
       case 'labels':
         return labels.length > 0
           ? `${labels.length} label${labels.length === 1 ? '' : 's'} gesynchroniseerd — beheren komt in Fase 4.`
@@ -252,9 +358,6 @@ export default function NotesApp() {
     return <LoginPagina onIngelogd={() => { /* onAuthStateChange zet de gebruiker */ }} />
   }
 
-  const actieveNotities     = notities.filter(n => !n.gearchiveerd)
-  const gearchiveerdeAantal = notities.length - actieveNotities.length
-
   return (
     <div className="h-full flex bg-gray-50">
       {/* Desktop-sidebar (verborgen op mobiel) */}
@@ -270,28 +373,28 @@ export default function NotesApp() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar
           titel={WEERGAVE_TITELS[weergave]}
-          onNieuw={() => setPlaceholder('nieuw')}
+          onNieuw={() => setNieuwKeuzeOpen(true)}
           onProfielMenu={() => setProfielMenuOpen(true)}
           gebruikerEmail={gebruiker.email}
         />
 
-        {/* Content: Fase 3 vervangt de empty states door het notitie-grid */}
+        {/* Content */}
         <main className="flex-1 overflow-y-auto">
           {weergave === 'archief' ? (
             <EmptyState
               icon={<Archive size={40} className="text-gray-300" />}
               titel="Archief is leeg"
               tekst={gearchiveerdeAantal > 0
-                ? `${gearchiveerdeAantal} gearchiveerde notitie${gearchiveerdeAantal === 1 ? '' : 's'} gesynchroniseerd — weergave komt in Fase 3.`
+                ? `${gearchiveerdeAantal} gearchiveerde notitie${gearchiveerdeAantal === 1 ? '' : 's'} — de archiefweergave komt in Fase 7.`
                 : 'Gearchiveerde notities en lijstjes verschijnen hier.'}
             />
+          ) : actieveNotities.length > 0 ? (
+            <NotitieGrid notities={actieveNotities} onOpen={setDetailNotitie} />
           ) : (
             <EmptyState
               icon={<StickyNote size={40} className="text-gray-300" />}
               titel="Nog geen notities"
-              tekst={actieveNotities.length > 0
-                ? `${actieveNotities.length} notitie${actieveNotities.length === 1 ? '' : 's'} gesynchroniseerd — weergave komt in Fase 3.`
-                : 'Vanaf Fase 3 kun je hier notities en lijstjes aanmaken.'}
+              tekst="Tik op + om je eerste notitie of lijstje te maken."
             />
           )}
         </main>
@@ -312,6 +415,19 @@ export default function NotesApp() {
         onUitloggen={uitloggen}
         onSluit={() => setProfielMenuOpen(false)}
       />
+      <NieuwKeuze
+        open={nieuwKeuzeOpen}
+        onKies={maakNieuw}
+        onSluit={() => setNieuwKeuzeOpen(false)}
+      />
+      {detailNotitie && (
+        <NotitieDetail
+          notitie={detailNotitie}
+          onWijzig={handleWijzigNotitie}
+          onVerwijder={handleVerwijderNotitie}
+          onSluit={sluitDetail}
+        />
+      )}
       {placeholder && (
         <PlaceholderModal
           open
