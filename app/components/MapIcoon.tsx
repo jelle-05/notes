@@ -20,6 +20,11 @@ export default function MapIcoon({ map, actief = false, size = 24 }: Props) {
     return <Folder size={18} className={`shrink-0 ${actief ? 'text-[#007AFF]' : 'text-gray-400'}`} />
   }
 
+  // De badge is breder dan de 18px-iconen ernaast; negatieve marge laat hem
+  // aan beide kanten evenveel uitsteken zodat het icoon-center én de tekst
+  // erna gewoon uitlijnen (bij pl-3-rijen begint de badge zo op 9px).
+  const overschot = (size - 18) / 2
+
   return (
     <span
       className="flex items-center justify-center shrink-0"
@@ -28,6 +33,8 @@ export default function MapIcoon({ map, actief = false, size = 24 }: Props) {
         height: size,
         borderRadius: 100,
         backgroundColor: labelAchtergrond(kleur, 0.15),
+        marginLeft: -overschot,
+        marginRight: -overschot,
       }}
     >
       <Folder size={Math.round(size * 0.58)} style={{ color: kleur }} />

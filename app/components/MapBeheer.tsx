@@ -212,9 +212,9 @@ export default function MapBeheer({ open, mappen, aantalPerMap, startMap, onOpsl
                   ))}
                 </div>
 
-                {/* Voorbeeld */}
+                {/* Voorbeeld (pl compenseert de uitlijn-marge van MapIcoon) */}
                 {bewerk.kleur && (
-                  <div className="flex items-center gap-2.5 mt-4">
+                  <div className="flex items-center gap-2.5 mt-4 pl-[5px]">
                     <MapIcoon map={bewerk} size={28} />
                     <span className="text-[14px] text-gray-700 truncate">{bewerk.naam?.trim() || 'Mapnaam'}</span>
                   </div>
