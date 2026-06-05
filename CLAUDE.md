@@ -28,6 +28,7 @@ app/
     NotitieGrid.tsx / NotitieKaart.tsx — kaartenoverzicht
     NotitieDetail.tsx  — detailweergave + editor ineen (auto-save, eigen draft)
     NieuwKeuze.tsx     — keuzemodal Notitie/Lijst bij ＋
+    ZoekFilterBalk.tsx — zoekveld + label-filterpills boven het grid
     KopieerKnop.tsx    — kopieer-als-tekst met 2s feedback
     LabelBeheer.tsx    — labelbeheer (kopie agenda: presets, color picker, contrast-warning)
     LabelPill.tsx      — label-pill met eventKleuren()-kleurresolutie
@@ -73,6 +74,19 @@ de basiskleur. Kaarten tonen max 3 pills + "+n"; verwijderde label-ids worden
 stil overgeslagen bij rendering. Label verwijderen stript het id uit alle notes
 (zonder gewijzigdOp-bump) — notes blijven altijd bestaan.
 
+## Zoeken & filteren (Fase 5)
+
+Volledig client-side als **afgeleide state**: één `useMemo` (`getoondeNotities`)
+bovenop `actieveNotities` — geen Supabase-queries per toetsaanslag, geen
+search-library. Filterketen: map (`actieveMapId`, technisch voorbereid voor
+Fase 6, nog zonder UI) → labels → zoekterm. Labelfilter is **OR**: een note
+matcht zodra hij minstens één actief label heeft; togglen kan via een pill op
+de kaart of via `ZoekFilterBalk`. Ids van verwijderde labels worden bij het
+filteren genegeerd én bij lokaal verwijderen uit `actieveLabelIds` gestript —
+nooit kapotte filterstate. Zoeken: getrimd, case-insensitive, over titel,
+inhoud en checklist-itemteksten. Gearchiveerde notes zitten nooit in de
+resultaten. `NotitieKaart` is een `div role="button"` (pills zijn zelf buttons).
+
 ## Kopieerfunctie
 
 `KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
@@ -94,4 +108,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 2 — datamodel (`supabase/schema.sql`) + offline-first opslag/sync-laag
 - ✅ Fase 3 — notes/checklist-UI + kopieerfunctie (auto-save, debounced sync)
 - ✅ Fase 4 — labels (LabelBeheer uit agenda, pills, koppelen in detailweergave)
-- ⏭️ Fase 5 — filteren (label/map) en zoeken
+- ✅ Fase 5 — filteren op labels (OR) + live zoeken; mapfilter technisch voorbereid
+- ⏭️ Fase 6 — mappen (beheer, sidebar-lijst, map kiezen, veilige verwijderflow)

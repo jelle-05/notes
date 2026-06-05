@@ -316,16 +316,30 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** snel het juiste vinden.
 
+**Status: afgerond** (klik-test door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- **Meerdere actieve labels met OR-logica**: een note wordt getoond zodra hij *minstens één* van de actieve labels heeft (snel filteren in een persoonlijke app; AND zou bij 2+ labels vrijwel altijd leeg zijn).
+- **Twee filteringangen**: klik op een label-pill op een kaart, óf toggle in de filterbalk (`ZoekFilterBalk.tsx`) boven het grid. Beide togglen dezelfde state (includes-check → geen dubbele filters).
+- De kaart (`NotitieKaart`) werd daarvoor een `div` met `role="button"` + Enter/Spatie-handler — de pills zijn nu zelf buttons en geneste buttons zijn invalid HTML.
+- **Verwijderde labels breken niets**: lokaal verwijderen ruimt `actieveLabelIds` direct op; voor realtime-verwijderingen vanaf een ander apparaat negeert de filterlogica ids die niet meer in `labels` bestaan.
+- **Mapfilter alleen technisch voorbereid**: `actieveMapId`-state + mapstap in de filterketen bestaan al, maar zonder UI — sidebar-klik/mappenbeheer komt in Fase 6.
+- Alles is **afgeleide state**: één `useMemo` (`getoondeNotities`) bovenop `actieveNotities` — geen Supabase-queries per toetsaanslag, geen search-library; realtime/localStorage-updates werken automatisch door en de sortering (gewijzigdOp desc) blijft staan.
+- Open vraag #16 bevestigd: gearchiveerde notes zitten **niet** in zoek/filter (zoeken binnen het archief komt eventueel in Fase 7).
+
 ### Taken
-- [ ] Filter op label: klik op een pill of via filtermenu → alleen notes met dat label.
-- [ ] Filter op map (sidebar-klik zet `weergave='map'` + `actieveMapId`).
-- [ ] Archieffilter: standaardweergave toont **nooit** gearchiveerde notes; archiefweergave alléén gearchiveerde.
-- [ ] Zoekveld (TopBar desktop, eigen balk mobiel): client-side zoeken op titel, inhoud én checklist-itemtekst, in een `useMemo` (agenda-patroon voor afgeleide data).
-- [ ] Actieve filters duidelijk tonen (chips met ×-knop om te wissen).
-- [ ] Filters + zoeken responsive en touch-friendly.
+- [x] Filter op label: klik op een pill op een kaart óf toggle in de filterbalk → alleen notes met (minstens één van) die labels; werkt voor notities én lijsten.
+- [x] Filter op map technisch voorbereid (`actieveMapId` + filterstap); UI/sidebar-klik volgt in Fase 6.
+- [x] Archieffilter: standaardweergave toont **nooit** gearchiveerde notes (zoek/filter draait op `actieveNotities`); archiefweergave blijft apart (Fase 7).
+- [x] Zoekveld (eigen balk boven het grid, desktop + mobiel): client-side zoeken op titel, inhoud én checklist-itemtekst, case-insensitive + getrimd, live in een `useMemo`.
+- [x] Actieve filters duidelijk tonen: actieve pills in labelkleur met ✓ en ring, zoekterm in het veld met ×-wisknop, "Wis filters" voor alles tegelijk; los wissen door een pill opnieuw te tikken.
+- [x] Empty state "Geen resultaten" + "Pas je zoekterm of filters aan" + Wis filters-knop; bestaande "Nog geen notities" blijft voor een lege app.
+- [x] Filters + zoeken responsive en touch-friendly: pills horizontaal scrollbaar (`overflow-x-auto`, geen pagina-overflow), zoekveld py-2.5, filterbalk alleen zichtbaar als er notities zijn (labelrij alleen als er labels zijn).
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
+- [ ] **Handmatig (Jelle):** klik-test na deploy — zoeken, pill-klik op kaart, filterbalk, wissen, horizontaal scrollen van pills op mobiel.
 
 ### Resultaat
-> Filteren op label/map/archief en zoeken, met zichtbare actieve filters.
+> Filteren op labels (OR) en live zoeken over titel/inhoud/items, met zichtbare en wisbare actieve filters; mapfilter technisch klaar voor Fase 6.
 
 ---
 
@@ -488,7 +502,7 @@ Nog open (beslissen tijdens of na de eerste fases; niets hiervan blokkeert de pl
 | 12 | Pin/favoriet support? | Niet in v1; eenvoudig later (`gepind boolean`). → ideas.md |
 | 13 | Full-text search? | v1: client-side zoeken (fase 5) is voldoende bij persoonlijk gebruik. Postgres FTS alleen als het ooit traag wordt. |
 | 14 | Prullenbak of direct verwijderen? | v1: direct verwijderen mét bevestiging; archief vangt het "spijt"-scenario deels op. Prullenbak → ideas.md. |
-| 16 | Gearchiveerde notes in zoekresultaten? | Voorstel: niet in de standaardzoek; wel zoeken bínnen de archiefweergave. Bevestigen bij fase 5/7. |
+| 16 | Gearchiveerde notes in zoekresultaten? | **Bevestigd in fase 5:** niet in de standaardzoek; zoeken bínnen de archiefweergave eventueel bij fase 7. |
 | 18 | Import/export? | Niet in v1. → ideas.md (export als tekst/JSON zou simpel zijn). |
 | 19 | Reminders/notificaties? | Niet in v1. Agenda heeft de hele infra (push/Telegram/e-mail) al — herbruikbaar als dit ooit gewenst is. → ideas.md |
 | 24 | Alleen geselecteerde checklist-items kopiëren? | Niet in v1; de hele lijst kopiëren dekt het boodschappen-scenario. → ideas.md |

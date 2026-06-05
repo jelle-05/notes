@@ -9,13 +9,16 @@ interface Props {
   notitie: Notitie
   labels: Label[]
   onOpen: (notitie: Notitie) => void
+  onLabelKlik?: (id: string) => void   // pill-klik = filteren op dat label
 }
 
 const PREVIEW_ITEMS = 3
 const MAX_PILLS = 3
 
 // Kaart in het notitie-grid: titel + korte preview + label-pills, iOS-stijl.
-export default function NotitieKaart({ notitie, labels, onOpen }: Props) {
+// Het kaart-element is een div met role="button" (geen <button>): de pills
+// erin zijn zelf buttons en geneste buttons zijn invalid HTML.
+export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: Props) {
   const isLijst = notitie.type === 'lijst'
   const afgevinkt = notitie.items.filter(i => i.afgevinkt).length
   const TypeIcon = isLijst ? ListChecks : FileText
@@ -26,9 +29,14 @@ export default function NotitieKaart({ notitie, labels, onOpen }: Props) {
     .filter((l): l is Label => l !== undefined)
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpen(notitie)}
-      className="text-left w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col gap-2 hover:shadow hover:border-gray-300 active:bg-gray-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]"
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(notitie) }
+      }}
+      className="cursor-pointer text-left w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col gap-2 hover:shadow hover:border-gray-300 active:bg-gray-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]"
     >
       {/* Titel */}
       <h3 className={`text-[15px] font-semibold truncate ${notitie.titel.trim() ? 'text-gray-900' : 'text-gray-400'}`}>
@@ -68,7 +76,11 @@ export default function NotitieKaart({ notitie, labels, onOpen }: Props) {
       {kaartLabels.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
           {kaartLabels.slice(0, MAX_PILLS).map(label => (
-            <LabelPill key={label.id} label={label} />
+            <LabelPill
+              key={label.id}
+              label={label}
+              onClick={onLabelKlik ? () => onLabelKlik(label.id) : undefined}
+            />
           ))}
           {kaartLabels.length > MAX_PILLS && (
             <span className="text-[11px] text-gray-400 font-medium">
@@ -84,6 +96,6 @@ export default function NotitieKaart({ notitie, labels, onOpen }: Props) {
         {isLijst && <span>{afgevinkt}/{notitie.items.length}</span>}
         <span className="ml-auto">{formatDatumKort(notitie.gewijzigdOp)}</span>
       </div>
-    </button>
+    </div>
   )
 }

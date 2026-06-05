@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Archive, StickyNote } from 'lucide-react'
+import { Archive, SearchX, StickyNote } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Weergave, Notitie, NotitieType, Label, NotitieMap, Instellingen } from '@/types'
 import { STANDAARD_INSTELLINGEN } from '@/types'
@@ -29,6 +29,7 @@ import NotitieGrid from './NotitieGrid'
 import NotitieDetail from './NotitieDetail'
 import NieuwKeuze from './NieuwKeuze'
 import LabelBeheer from './LabelBeheer'
+import ZoekFilterBalk from './ZoekFilterBalk'
 
 // Titels per weergave voor de TopBar.
 const WEERGAVE_TITELS: Record<Weergave, string> = {
@@ -66,6 +67,12 @@ export default function NotesApp() {
   const [nieuwKeuzeOpen, setNieuwKeuzeOpen]   = useState(false)
   const [detailNotitie, setDetailNotitie]     = useState<Notitie | null>(null)
   const [labelBeheerOpen, setLabelBeheerOpen] = useState(false)
+
+  // Zoeken & filteren (client-side, afgeleide state — zie getoondeNotities)
+  const [zoekterm, setZoekterm]               = useState('')
+  const [actieveLabelIds, setActieveLabelIds] = useState<string[]>([])
+  // Voorbereiding Fase 6: mapfilter zit al in de filterlogica, nog zonder UI.
+  const [actieveMapId] = useState<string | null>(null)
 
   // Debounced remote sync: per notitie één timer; de laatste versie wint.
   const syncTimers  = useRef(new Map<string, ReturnType<typeof setTimeout>>())
@@ -269,6 +276,8 @@ export default function NotesApp() {
   // wijziging, dus de kaartvolgorde blijft staan.
   function handleVerwijderLabel(id: string) {
     setLabels(prev => verwijderLabel(id, prev))
+    // Verwijderd label mag geen kapotte filterstate achterlaten.
+    setActieveLabelIds(prev => prev.filter(l => l !== id))
     verwijderLabelUitSupabase(id)
       .catch(err => console.error('Supabase label verwijder sync mislukt:', err))
 
@@ -287,6 +296,20 @@ export default function NotesApp() {
       slaVeelNotitiesOpInSupabase(geschoond, userId)
         .catch(err => console.error('Supabase labelIds opschonen mislukt:', err))
     }
+  }
+
+  // ── Zoeken & filteren ────────────────────────────────────────────────────────
+
+  // Label-filter aan/uit togglen; includes-check voorkomt dubbele filters.
+  function toggleLabelFilter(id: string) {
+    setActieveLabelIds(prev =>
+      prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
+    )
+  }
+
+  function wisFilters() {
+    setZoekterm('')
+    setActieveLabelIds([])
   }
 
   // ── Auth & data init (agenda-patroon) ────────────────────────────────────────
@@ -366,6 +389,38 @@ export default function NotesApp() {
   )
   const gearchiveerdeAantal = notities.length - actieveNotities.length
 
+  // Zoek- en filterresultaat als afgeleide state op actieveNotities: map (prep
+  // Fase 6) → labels (OR: minstens één actief label) → zoekterm (titel, inhoud
+  // en checklist-items, case-insensitive). Sortering blijft die van
+  // actieveNotities; realtime/localStorage-updates werken automatisch door.
+  const getoondeNotities = useMemo(() => {
+    let resultaat = actieveNotities
+
+    if (actieveMapId !== null) {
+      resultaat = resultaat.filter(n => n.mapId === actieveMapId)
+    }
+
+    // Alleen filteren op labels die nog bestaan — een (op een ander apparaat)
+    // verwijderd label wordt stil genegeerd in plaats van alles te verbergen.
+    const geldigeFilterIds = actieveLabelIds.filter(id => labels.some(l => l.id === id))
+    if (geldigeFilterIds.length > 0) {
+      resultaat = resultaat.filter(n => geldigeFilterIds.some(id => n.labelIds.includes(id)))
+    }
+
+    const term = zoekterm.trim().toLowerCase()
+    if (term !== '') {
+      resultaat = resultaat.filter(n =>
+        n.titel.toLowerCase().includes(term) ||
+        n.inhoud.toLowerCase().includes(term) ||
+        n.items.some(i => i.tekst.toLowerCase().includes(term))
+      )
+    }
+
+    return resultaat
+  }, [actieveNotities, actieveMapId, actieveLabelIds, labels, zoekterm])
+
+  const heeftActieveFilters = zoekterm.trim() !== '' || actieveLabelIds.length > 0
+
   // Placeholder-teksten voor latere fases.
   function placeholderTekst(soort: Exclude<PlaceholderSoort, null>): string {
     switch (soort) {
@@ -423,7 +478,38 @@ export default function NotesApp() {
                 : 'Gearchiveerde notities en lijstjes verschijnen hier.'}
             />
           ) : actieveNotities.length > 0 ? (
-            <NotitieGrid notities={actieveNotities} labels={labels} onOpen={setDetailNotitie} />
+            <div className="min-h-full flex flex-col">
+              <ZoekFilterBalk
+                zoekterm={zoekterm}
+                onZoek={setZoekterm}
+                labels={labels}
+                actieveLabelIds={actieveLabelIds}
+                onToggleLabel={toggleLabelFilter}
+                onWisFilters={wisFilters}
+              />
+              {getoondeNotities.length > 0 ? (
+                <NotitieGrid
+                  notities={getoondeNotities}
+                  labels={labels}
+                  onOpen={setDetailNotitie}
+                  onLabelKlik={toggleLabelFilter}
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                  <SearchX size={40} className="text-gray-300" />
+                  <h2 className="text-[17px] font-semibold text-gray-900">Geen resultaten</h2>
+                  <p className="text-[14px] text-gray-400 max-w-[280px]">Pas je zoekterm of filters aan.</p>
+                  {heeftActieveFilters && (
+                    <button
+                      onClick={wisFilters}
+                      className="text-[14px] font-semibold text-[#007AFF] hover:text-[#0066D6] transition-colors"
+                    >
+                      Wis filters
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <EmptyState
               icon={<StickyNote size={40} className="text-gray-300" />}
