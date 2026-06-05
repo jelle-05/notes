@@ -30,7 +30,9 @@ PWA:          manifest + service worker (offline fallback)
 
 ## PWA & Android TWA
 
-De app is PWA-ready: manifest (`app/manifest.ts`, incl. maskable icon en `lang`/`dir`), service worker met offline-fallback (`public/sw.js` + `public/offline.html`) en consistente theme-color. Het plan om de app als Android-app (Trusted Web Activity, privé-APK via Bubblewrap) te draaien staat in [twa.md](twa.md) — **TWA Fase 1 (readiness-check) is afgerond**; Fase 2+ (push, wrapper) wacht op de open vragen in twa.md §12.
+De app is PWA-ready: manifest (`app/manifest.ts`, incl. maskable icon en `lang`/`dir`), service worker met offline-fallback én push-handlers (`public/sw.js` + `public/offline.html`) en consistente theme-color. Het plan om de app als Android-app (Trusted Web Activity, privé-APK via Bubblewrap) te draaien staat in [twa.md](twa.md) — **TWA Fase 1 (readiness) en Fase 2 (push-basis, code) zijn afgerond**; Fase 3+ (wrapper/APK) volgt in een aparte map buiten deze repo.
+
+**Pushmeldingen** (instellingen → Pushmeldingen): inschakelen per apparaat + testpush-knop. Vereist env-vars (zie hieronder) en de tabel `notes_push_subscriptions` uit het schema; push is bewust beperkt tot het account in `PUSH_TOEGESTAAN_EMAIL`.
 
 Zelf checken:
 
@@ -50,14 +52,24 @@ Maak een `.env.local` met (waarden uit het Supabase-dashboard, of overnemen uit 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Pushmeldingen (optioneel — alleen namen hier; genereer keys met `npx web-push generate-vapid-keys`)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
+PUSH_TOEGESTAAN_EMAIL=
 ```
 
-Inloggen werkt met een bestaand agenda-account (zelfde Supabase-project).
+Inloggen werkt met een bestaand agenda-account (zelfde Supabase-project). De
+`VAPID_PRIVATE_KEY` is geheim: alleen in `.env.local` (gitignored) en de
+Vercel-env-vars — nooit in code, docs of Git. Zonder de push-vars blijft de
+rest van de app gewoon werken; alleen pushmeldingen geven dan een nette
+foutmelding.
 
 ### Database-setup (eenmalig)
 
-1. Open het Supabase-dashboard → **SQL Editor** en voer [`supabase/schema.sql`](supabase/schema.sql) uit (idempotent, veilig opnieuw te draaien).
-2. Zet **Realtime** aan voor de tabellen `notes`, `notes_labels` en `notes_mappen` via Database → Replication.
+1. Open het Supabase-dashboard → **SQL Editor** en voer [`supabase/schema.sql`](supabase/schema.sql) uit (idempotent, veilig opnieuw te draaien — bevat ook `notes_push_subscriptions` voor pushmeldingen).
+2. Zet **Realtime** aan voor de tabellen `notes`, `notes_labels` en `notes_mappen` via Database → Replication (`notes_instellingen` en `notes_push_subscriptions` hebben geen realtime nodig).
 
 Zonder deze stap blijft de app gewoon werken (offline-first via localStorage), maar wordt er niets gesynchroniseerd tussen apparaten.
 

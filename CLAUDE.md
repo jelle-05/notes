@@ -43,6 +43,9 @@ app/
     TopBar.tsx         — titel + nieuw + profiel
     InstellingenMenu.tsx — instellingen (sectie Archief: auto-archief toggle + dagen)
     LoginPagina / ProfielMenu / ErrorBoundary / SwRegistratie
+  api/
+    push/subscribe/route.ts — subscription upsert (POST) / verwijderen (DELETE), Bearer-token
+    push/test/route.ts      — testpush naar alle eigen apparaten (web-push, 404/410-opruiming)
   lib/
     supabase.ts        — Supabase client
     opslag.ts          — localStorage cache (offline-first)
@@ -51,6 +54,7 @@ app/
     kleuren.ts         — eventKleuren(), contrastRatio(), alpha-helpers (kopie agenda)
     helpers.ts         — factories, isLeeg(), formatDatumKort(), metGewijzigdOp()
     archief.ts         — vindAutoArchiefKandidaten() + clampArchiefDagen() (pure functies)
+    pushUtils.ts       — subscribeerOpPush()/afmeldenVanPush() incl. VAPID-rotatiecheck (kopie agenda)
     useEscape.ts       — Escape sluit de open modal
   types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
 supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
@@ -63,6 +67,7 @@ scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
 - **`notes_labels`** — eigen labels, zelfde kolomvorm als agenda's `labels` (LabelBeheer 1:1 herbruikbaar).
 - **`notes_mappen`** — platte mappen; verwijderen zet `map_id` van notes op null (geen cascade).
 - **`notes_instellingen`** — één rij per user: `auto_archief_aan`, `auto_archief_dagen` (default 30).
+- **`notes_push_subscriptions`** — web-push-subscriptions per apparaat (`endpoint`, `p256dh`, `auth`, unique per user+endpoint); bewust gescheiden van agenda's `push_subscriptions`.
 - Alles per-user met RLS (`auth.uid() = user_id`); geen DB-triggers — timestamps zet de client.
 - Sync is **fail-open**: als tabellen/netwerk ontbreken draait de app door op localStorage.
 
@@ -143,6 +148,20 @@ archiveren (incl. `gewijzigdOp`-bump), als stille bulk-upsert. Teruggezette
 notes worden niet direct her-gearchiveerd dankzij de bump uit Fase 7.
 Server-side cron blijft optioneel (Fase 10+).
 
+## Pushmeldingen (TWA Fase 2)
+
+Agenda-patroon 1:1: `lib/pushUtils.ts` (subscribe met VAPID-rotatiecheck,
+afmelden per apparaat), sw.js `push`/`notificationclick`-handlers (cache
+`notes-v2`), API-routes met Bearer-token + anon-key-client (RLS-scoped).
+Sectie **Pushmeldingen** in `InstellingenMenu` (onder Archief): status,
+toestemming, in-/uitschakelen, testpush met 2 s-feedback. Twee bewuste
+afwijkingen van de agenda: VAPID-config is **lazy** in de test-route (nette
+503 i.p.v. crash zonder env-vars — fail-open) en push is **beperkt tot één
+account** via de server-only env-var `PUSH_TOEGESTAAN_EMAIL` (403 voor andere
+accounts). Env-vars: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+(geheim, server-only), `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` — eigen
+keypair, niet dat van de agenda. Echte reminders = TWA Fase 5 (later).
+
 ## Kopieerfunctie
 
 `KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
@@ -155,7 +174,7 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 
 - Werk fase voor fase volgens `fases.md`; vink taken daar af.
 - `npm run lint` + `npm run build` moeten groen zijn vóór commit; commit per werkende feature (Vercel deployt automatisch op push naar `main`).
-- Geen secrets in code/docs. Env-vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (in `.env.local`, gitignored).
+- Geen secrets in code/docs. Env-vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, en voor push `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` (in `.env.local`, gitignored; productie via Vercel).
 
 ## Status
 
@@ -172,4 +191,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ⏭️ Fase 10 — testen, documentatie en oplevering
 - 📋 Toekomst: Android TWA (privé-APK) + pushmeldingen — plan in `twa.md`
   - ✅ TWA Fase 1 — PWA-readiness-check: manifest aangevuld met `lang`/`dir`, icons/sw/offline-fallback geverifieerd (bevindingen in twa.md §11)
-  - ⏳ TWA Fase 2 (push-basis) en Fase 3 (Bubblewrap-wrapper, in een map buiten deze repo) wachten op de open vragen in twa.md §12
+  - ✅ TWA Fase 2 — push-basis (code): sw-handlers, pushUtils, API-routes, schema, sectie Pushmeldingen; config-stappen voor Jelle in twa.md §11 Fase 2
+  - ⏳ TWA Fase 3 — Bubblewrap-wrapper (in een map buiten deze repo); open vragen twa.md §12 zijn beantwoord

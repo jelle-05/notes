@@ -26,13 +26,13 @@ Wat er al staat (na Fase 0–9):
 | Next.js | 16 (App Router, Turbopack), TypeScript strict, Tailwind v4 |
 | Manifest | ✅ `app/manifest.ts` → `/manifest.webmanifest`: naam "Notities", `display: standalone`, `orientation: portrait`, `start_url: '/'`, `lang: nl`, `dir: ltr`, `theme/background: #ffffff`, icons svg/192/512/maskable |
 | Icons | ✅ `public/icon.svg` is de ene bron; `scripts/generate-icons.mjs` genereert `icon-192/512.png`, `icon-maskable.png` (full-bleed `#FFCC00`) en `apple-touch-icon.png`; favicon via `metadata.icons` in `app/layout.tsx` |
-| Service worker | ✅ `public/sw.js`: cache-first voor `/_next/static/`, offline-fallback (`offline.html`). ❌ **Geen** `push`/`notificationclick`-handlers |
+| Service worker | ✅ `public/sw.js` (`notes-v2`): cache-first voor `/_next/static/`, offline-fallback (`offline.html`), `push`- en `notificationclick`-handlers |
 | Instellingen-tab | ✅ `app/components/InstellingenMenu.tsx` (modal via sidebar + profielmenu), nu één sectie **Archief** — uitbreidbaar met een sectie **Pushmeldingen** |
 | Deployment | ✅ Vercel, auto-deploy op push naar `main`; domein **`https://notes.jellebol.nl`** (HTTPS — vereist voor TWA en push) |
 | Auth/backend | ✅ Supabase (gedeeld project met agenda): Auth, PostgreSQL met RLS, Realtime; offline-first localStorage-sync |
-| API-routes | ❌ Nog geen `app/api/` in dit project (de agenda heeft ze wél, incl. push — zie §4) |
-| `assetlinks.json` | ❌ Geen `public/.well-known/` |
-| Push-infra | ❌ Geen VAPID-keys, geen subscriptions-tabel, geen push-API |
+| API-routes | ✅ `app/api/push/subscribe` (POST/DELETE) + `app/api/push/test` (POST), Bearer-token-auth, beperkt tot `PUSH_TOEGESTAAN_EMAIL` |
+| `assetlinks.json` | ❌ Geen `public/.well-known/` (Fase 3 — wacht op keystore-fingerprint) |
+| Push-infra | ✅ VAPID-keys gegenereerd (lokaal in `.env.local`; nog naar Vercel), `notes_push_subscriptions` in `supabase/schema.sql` (nog uitvoeren in SQL Editor), sectie Pushmeldingen in InstellingenMenu |
 
 **Referentie:** de agenda-app (`D:\jelle\agenda`, niet wijzigen) heeft een complete, werkende web-push-stack die vrijwel 1:1 te kopiëren is: `app/lib/pushUtils.ts` (subscribe/afmelden incl. VAPID-key-rotatiecheck), `app/api/push/subscribe` + `app/api/push/test` (Bearer-token auth, `web-push`, dode subscriptions opruimen bij 404/410), de `push_subscriptions`-tabel en sw.js-handlers voor `push`/`notificationclick`. Ook het InstellingenMenu-patroon met permission-status en testknop bestaat daar al.
 
@@ -190,8 +190,21 @@ Readiness-check uitgevoerd; bevindingen:
 - **`next.config.ts` is leeg** — prima; Vercel serveert `public/.well-known/assetlinks.json` straks gewoon als JSON. Bij Fase 3 live verifiëren (200 + `Content-Type: application/json`); alleen bij problemen een `headers()`-regel toevoegen.
 - ⏳ **Handmatige check** (Jelle): Chrome DevTools → Application → Manifest moet "Installable" tonen zonder warnings (live URL of `npm run dev`).
 
-### TWA Fase 2 — Push basis
-VAPID-keys genereren (env-vars in Vercel + `.env.local`), `notes_push_subscriptions`-tabel + RLS in `supabase/schema.sql`, `web-push`-dependency, sw.js push/notificationclick-handlers, `lib/pushUtils.ts`, API-routes `/api/push/subscribe` + `/api/push/test`, en de sectie **Pushmeldingen** met **Test pushmelding**-knop in `InstellingenMenu.tsx`. Alles naar agenda-patroon.
+### TWA Fase 2 — Push basis ✅ code afgerond
+
+Gebouwd naar agenda-patroon:
+
+- `web-push` + `@types/web-push` als dependency; VAPID-keypair gegenereerd in `.env.local` (eigen keys, niet die van de agenda).
+- `public/sw.js`: cache-bump naar `notes-v2` + `push`-handler (toont `titel`/`bericht` met `icon-192.png`) en `notificationclick`-handler (focus of open `/`).
+- `app/lib/pushUtils.ts`: `subscribeerOpPush()` (incl. VAPID-rotatiecheck en herstel van kapotte registraties) + `afmeldenVanPush()`.
+- `app/api/push/subscribe/route.ts` (POST upsert / DELETE per endpoint) en `app/api/push/test/route.ts` (testpush naar alle eigen apparaten, 404/410-opruiming, `{ verstuurd, opgeruimd }`). Afwijking van agenda: VAPID-config is **lazy** (nette 503 i.p.v. crash als env-vars ontbreken) en push is beperkt tot het account in `PUSH_TOEGESTAAN_EMAIL` (open vraag #6).
+- `supabase/schema.sql`: tabel `notes_push_subscriptions` + RLS (idempotent).
+- `InstellingenMenu.tsx`: sectie **Pushmeldingen** (status, toestemming, in-/uitschakelen, **Test pushmelding** met 2 s-feedback, foutregel, uitleg bij geblokkeerd).
+
+**Nog te doen door Jelle (config, geen code):**
+1. `supabase/schema.sql` opnieuw uitvoeren in de Supabase SQL Editor (idempotent — voegt alleen `notes_push_subscriptions` toe).
+2. In Vercel (Production + Preview) de env-vars zetten: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` — waarden staan lokaal in `.env.local` (de private key nooit elders delen).
+3. Testen: instellingen → Pushmeldingen inschakelen → Test pushmelding (eerst lokaal/desktop-Chrome, daarna op de S26 in Chrome).
 
 ### TWA Fase 3 — TWA wrapper
 Bubblewrap installeren, project init in een map buiten deze repo, package name, keystore aanmaken + veilig opbergen, `assetlinks.json` genereren en hosten via `public/.well-known/`.
@@ -202,19 +215,21 @@ Bubblewrap installeren, project init in een map buiten deze repo, package name, 
 ### TWA Fase 5 — Later: echte notificaties
 Reminders per note, app-event-pushes, Vercel-cron-scheduler (agenda-patroon), terugkerende meldingen. Pas plannen na Fase 1–4.
 
-## 12. Open vragen
+## 12. Open vragen — ✅ beantwoord (juni 2026)
 
-1. **Definitieve URL** — is `https://notes.jellebol.nl` definitief gekoppeld en blijft dat zo? (TWA + assetlinks zijn domeingebonden.)
-2. **Package name** — akkoord met `nl.jellebol.notes`?
-3. **Logo** — is het huidige gele notitie-icoon (`public/icon.svg`) definitief, of komt er nog een redesign vóór de APK-build?
-4. **App-naam op het toestel** — "Notities" (zoals het manifest) of iets anders ("Notes")?
-5. **Subscriptions in Supabase** — akkoord met een eigen `notes_push_subscriptions`-tabel in het gedeelde project?
-6. **Alleen eigen gebruiker?** — pushes zijn per `user_id`; moeten we ergens afdwingen dat alléén jouw account kan subscriben, of is RLS per user genoeg (ook als iemand anders ooit zou inloggen)?
-7. **Testtoestel** — welke Android-versie/welk toestel gebruik je? (Relevant voor de Android 13+ runtime-notificatiepermissie.)
-8. **Reminders later** — wil je in TWA Fase 5 echte reminders, of blijft het bij handmatige testpush?
-9. **Weergave** — standalone mét statusbalk (huidige manifest-instelling, aanbevolen) of echt fullscreen?
-10. **Keystore-bewaarplek** — wachtwoordmanager + welke backup-locatie?
+1. **Definitieve URL** — ✅ `https://notes.jellebol.nl` is definitief.
+2. **Package name** — ✅ `nl.jellebol.notes` akkoord.
+3. **Logo** — ✅ het gele notitie-icoon (`public/icon.svg`) is definitief.
+4. **App-naam op het toestel** — ✅ blijft "Notities".
+5. **Subscriptions in Supabase** — ✅ eigen tabel `notes_push_subscriptions` akkoord.
+6. **Alleen eigen gebruiker** — ✅ push is beperkt tot één account: de API-routes
+   weigeren (403) elk account dat niet overeenkomt met de server-only env-var
+   `PUSH_TOEGESTAAN_EMAIL` (naast de RLS-scoping per user).
+7. **Testtoestel** — ✅ Samsung Galaxy S26 (Android 13+ runtime-notificatiepermissie van toepassing).
+8. **Reminders later** — ✅ echte reminders komen op een andere dag (Fase 5); nu alleen de testpush.
+9. **Weergave** — ✅ `standalone` (zelfde instelling als de agenda-app; al zo in het manifest).
+10. **Keystore-bewaarplek** — ✅ wachtwoordmanager.
 
 ---
 
-*Status: TWA Fase 1 (PWA readiness) ✅ afgerond — manifest aangevuld met `lang`/`dir`, verder alles al in orde. Volgende stap: open vragen (§12) beantwoorden → TWA Fase 2 (push-basis) en/of Fase 3 (wrapper); vragen 5–8 zijn nodig vóór Fase 2, vragen 1–4 + 9–10 vóór Fase 3.*
+*Status: TWA Fase 1 ✅ en Fase 2 (code) ✅ afgerond; alle open vragen (§12) beantwoord. Volgende stap: Supabase-schema draaien + Vercel-env-vars zetten (zie §11 Fase 2) → testpush verifiëren → TWA Fase 3 (Bubblewrap-wrapper in een map buiten deze repo).*

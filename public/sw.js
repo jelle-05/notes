@@ -1,4 +1,4 @@
-const CACHE = 'notes-v1'
+const CACHE = 'notes-v2'
 
 self.addEventListener('install', (e) => {
   // Pre-cache de offline-fallback pagina
@@ -43,4 +43,32 @@ self.addEventListener('fetch', (e) => {
     )
     return
   }
+})
+
+// Push notificatie ontvangen
+self.addEventListener('push', (e) => {
+  if (!e.data) return
+  let data
+  try { data = e.data.json() } catch { data = { titel: 'Notities', bericht: e.data.text() } }
+
+  e.waitUntil(
+    self.registration.showNotification(data.titel ?? 'Notities', {
+      body:  data.bericht ?? '',
+      icon:  '/icon-192.png',
+      badge: '/icon-192.png',
+      tag:   data.id ?? 'notes',
+      data:  { url: '/' },
+    })
+  )
+})
+
+// Klik op notificatie → app openen of focussen
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((lijst) => {
+      const open = lijst.find(c => c.url.startsWith(self.location.origin))
+      return open ? open.focus() : self.clients.openWindow('/')
+    })
+  )
 })

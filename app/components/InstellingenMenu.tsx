@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 import type { Instellingen } from '@/types'
 import { MIN_ARCHIEF_DAGEN, MAX_ARCHIEF_DAGEN, clampArchiefDagen } from '@/lib/archief'
 import { useEscape } from '@/lib/useEscape'
+import { supabase } from '@/lib/supabase'
+import { subscribeerOpPush, afmeldenVanPush } from '@/lib/pushUtils'
+
+type PushStatus = 'laden' | 'niet-ondersteund' | 'geblokkeerd' | 'uit' | 'aan'
 
 interface Props {
   open: boolean
@@ -20,6 +24,14 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
   const [dagenTekst, setDagenTekst] = useState(String(instellingen.autoArchiefDagen))
   const [dagenHint, setDagenHint] = useState('')
 
+  // Pushmeldingen (TWA Fase 2, agenda-patroon): status afgeleid van
+  // browser-support + Notification.permission + actieve subscription.
+  const [pushStatus, setPushStatus] = useState<PushStatus>('laden')
+  const [pushBezig, setPushBezig] = useState(false)
+  const [pushFout, setPushFout] = useState('')
+  const [testBezig, setTestBezig] = useState(false)
+  const [testFeedback, setTestFeedback] = useState(false)
+
   // Synchroniseer het invoerveld wanneer de modal opent of de waarde elders wijzigt.
   useEffect(() => {
     // Bewuste reset: het veld spiegelt de opgeslagen waarde.
@@ -28,9 +40,96 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
     setDagenHint('')
   }, [open, instellingen.autoArchiefDagen])
 
+  // Bepaal de pushstatus bij het openen van de modal (browser-support +
+  // Notification.permission + actieve subscription).
+  useEffect(() => {
+    if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPushFout('')
+
+    async function bepaalPushStatus() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setPushStatus('niet-ondersteund')
+        return
+      }
+      if (Notification.permission === 'denied') { setPushStatus('geblokkeerd'); return }
+      if (Notification.permission === 'granted') {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration()
+          const sub = reg ? await reg.pushManager.getSubscription() : null
+          setPushStatus(sub ? 'aan' : 'uit')
+          return
+        } catch {
+          // val hieronder terug op 'uit'
+        }
+      }
+      setPushStatus('uit')
+    }
+    bepaalPushStatus()
+  }, [open])
+
   useEscape(open, onSluit)
 
   if (!open) return null
+
+  async function token() {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? null
+  }
+
+  async function zetPushAan() {
+    setPushFout(''); setPushBezig(true)
+    try {
+      const perm = await Notification.requestPermission()
+      if (perm !== 'granted') {
+        setPushStatus(perm === 'denied' ? 'geblokkeerd' : 'uit')
+        return
+      }
+      const t = await token()
+      if (!t) { setPushFout('Niet ingelogd'); return }
+      if (await subscribeerOpPush(t)) setPushStatus('aan')
+      else setPushFout('Pushmeldingen inschakelen mislukt')
+    } finally {
+      setPushBezig(false)
+    }
+  }
+
+  async function zetPushUit() {
+    setPushFout(''); setPushBezig(true)
+    try {
+      const t = await token()
+      if (!t) { setPushFout('Niet ingelogd'); return }
+      if (await afmeldenVanPush(t)) setPushStatus('uit')
+      else setPushFout('Pushmeldingen uitschakelen mislukt')
+    } finally {
+      setPushBezig(false)
+    }
+  }
+
+  // Stuurt een testpush naar alle apparaten van de ingelogde gebruiker;
+  // feedback 2 s zichtbaar (zelfde patroon als KopieerKnop).
+  async function verstuurTestPush() {
+    setPushFout(''); setTestBezig(true)
+    try {
+      const t = await token()
+      if (!t) { setPushFout('Niet ingelogd'); return }
+      const resp = await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${t}` },
+      })
+      if (resp.ok) {
+        setTestFeedback(true)
+        setTimeout(() => setTestFeedback(false), 2000)
+      } else {
+        const { error } = await resp.json().catch(() => ({ error: null }))
+        setPushFout(error ?? 'Versturen mislukt — probeer het later opnieuw')
+      }
+    } catch {
+      setPushFout('Versturen mislukt — probeer het later opnieuw')
+    } finally {
+      setTestBezig(false)
+    }
+  }
 
   function toggleAutoArchief() {
     onWijzig({ ...instellingen, autoArchiefAan: !instellingen.autoArchiefAan })
@@ -132,6 +231,83 @@ export default function InstellingenMenu({ open, instellingen, onWijzig, onSluit
                 ? `Notities ouder dan ${instellingen.autoArchiefDagen} dag${instellingen.autoArchiefDagen === 1 ? '' : 'en'} worden bij het openen van de app gearchiveerd.`
                 : 'Staat uit — er wordt niets automatisch gearchiveerd.'}
             </p>
+          </div>
+
+          {/* Pushmeldingen (TWA Fase 2) */}
+          <p className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold px-1 pt-2">Pushmeldingen</p>
+
+          <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-200">
+            {/* Statusregel */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-[15px] text-gray-800">Status</span>
+              <span className="text-[15px] text-gray-500">
+                {pushStatus === 'laden' && 'Laden…'}
+                {pushStatus === 'niet-ondersteund' && 'Niet ondersteund op dit apparaat'}
+                {pushStatus !== 'laden' && pushStatus !== 'niet-ondersteund' && 'Ondersteund'}
+              </span>
+            </div>
+
+            {/* Permission-status */}
+            {pushStatus !== 'laden' && pushStatus !== 'niet-ondersteund' && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[15px] text-gray-800">Toestemming</span>
+                <span className="text-[15px] text-gray-500">
+                  {pushStatus === 'geblokkeerd' ? 'Geblokkeerd'
+                    : pushStatus === 'aan' || Notification.permission === 'granted' ? 'Toegestaan'
+                    : 'Nog niet gevraagd'}
+                </span>
+              </div>
+            )}
+
+            {/* Inschakelen / uitschakelen */}
+            {pushStatus === 'uit' && (
+              <button
+                onClick={zetPushAan}
+                disabled={pushBezig}
+                className="w-full px-4 py-3 text-[15px] text-[#007AFF] font-medium text-left disabled:opacity-50"
+              >
+                {pushBezig ? 'Bezig…' : 'Pushmeldingen inschakelen'}
+              </button>
+            )}
+            {pushStatus === 'aan' && (
+              <>
+                <button
+                  onClick={zetPushUit}
+                  disabled={pushBezig}
+                  className="w-full px-4 py-3 text-[15px] text-[#007AFF] font-medium text-left disabled:opacity-50"
+                >
+                  {pushBezig ? 'Bezig…' : 'Pushmeldingen uitschakelen'}
+                </button>
+                <button
+                  onClick={verstuurTestPush}
+                  disabled={testBezig}
+                  className="w-full px-4 py-3 text-[15px] text-[#007AFF] font-medium text-left disabled:opacity-50"
+                >
+                  {testBezig ? 'Versturen…' : testFeedback ? 'Testmelding verstuurd ✓' : 'Test pushmelding'}
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Uitleg + feedback */}
+          <div className="px-1 space-y-1">
+            {pushStatus === 'geblokkeerd' && (
+              <p className="text-[12px] text-gray-400 leading-relaxed">
+                Meldingen zijn geblokkeerd — zet ze weer aan via de site-instellingen
+                van je browser of de Android-appinfo.
+              </p>
+            )}
+            {pushStatus === 'aan' && (
+              <p className="text-[12px] text-gray-500 font-medium">
+                Meldingen staan aan op dit apparaat.
+              </p>
+            )}
+            {pushStatus === 'uit' && (
+              <p className="text-[12px] text-gray-400 leading-relaxed">
+                Schakel pushmeldingen in om meldingen op dit apparaat te ontvangen.
+              </p>
+            )}
+            {pushFout && <p className="text-[12px] text-red-500">{pushFout}</p>}
           </div>
         </div>
       </div>

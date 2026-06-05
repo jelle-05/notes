@@ -100,3 +100,25 @@ alter table notes_instellingen enable row level security;
 drop policy if exists "eigen notes_instellingen" on notes_instellingen;
 create policy "eigen notes_instellingen" on notes_instellingen for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ── notes_push_subscriptions ──────────────────────────────────────────────────
+-- Web-push-subscriptions (TWA Fase 2), één rij per apparaat/endpoint. Bewust
+-- een eigen tabel, gescheiden van agenda's `push_subscriptions`: anders zouden
+-- agenda-reminders ook naar Notes-apparaten pushen en vice versa. Geen
+-- realtime nodig. Zelfde kolomvorm als de agenda-tabel.
+create table if not exists notes_push_subscriptions (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users not null,
+  endpoint      text not null,
+  p256dh        text not null,
+  auth          text not null,
+  aangemaakt_op timestamptz default now(),
+  unique(user_id, endpoint)
+);
+
+alter table notes_push_subscriptions enable row level security;
+drop policy if exists "eigen notes_push_subscriptions" on notes_push_subscriptions;
+create policy "eigen notes_push_subscriptions" on notes_push_subscriptions for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists notes_push_subscriptions_user_idx on notes_push_subscriptions (user_id);
