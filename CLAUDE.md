@@ -114,6 +114,16 @@ gearchiveerde) op undefined zonder `gewijzigdOp`-bump en reset het actieve
 filter; een realtime-verwijdering vanaf een ander apparaat wordt render-time
 genegeerd. "Alle notities"/Notities-tab wist het mapfilter.
 
+## Archief (Fase 7)
+
+Archiveren via de detailweergave (bewerk-modus, boven Verwijderen); terugzetten
+op de archiefkaart (footer-knop) of in de detailweergave. Geen bevestiging
+(omkeerbaar), geen debounce (discrete actie → directe upsert, lopende
+debounce-timer wordt geannuleerd). Beide overgangen bumpen `gewijzigdOp`
+(teruggezet = bovenaan actief grid; voorkomt directe her-archivering door
+Fase 8). Archiefweergave: zelfde grid, kaarten gedempt (`opacity-70`), datum =
+`gearchiveerdOp`, sortering nieuwst-gearchiveerd eerst; geen zoek/filterbalk.
+
 ## Kopieerfunctie
 
 `KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
@@ -137,4 +147,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 4 — labels (LabelBeheer uit agenda, pills, koppelen in detailweergave)
 - ✅ Fase 5 — filteren op labels (OR) + live zoeken; mapfilter technisch voorbereid
 - ✅ Fase 6 — mappen (beheer, sidebar-sectie + mobiele sheet, map kiezen per note, veilige verwijderflow)
-- ⏭️ Fase 7 — archief (archiveren/terugzetten, archiefweergave)
+- ✅ Fase 7 — archief (archiveren via detail, terugzetten via kaart/detail, gedempte archiefweergave)
+- ⏭️ Fase 8 — instellingen + automatisch archiveren

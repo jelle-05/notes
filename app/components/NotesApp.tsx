@@ -6,7 +6,7 @@ import type { User } from '@supabase/supabase-js'
 import type { Weergave, Notitie, NotitieType, Label, NotitieMap, Instellingen } from '@/types'
 import { STANDAARD_INSTELLINGEN, GEEN_MAP_FILTER } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { nieuweNotitie, isLeeg } from '@/lib/helpers'
+import { nieuweNotitie, isLeeg, metGewijzigdOp, nuIso } from '@/lib/helpers'
 import {
   laadNotities, slaNotitieOp, verwijderNotitie, slaAlleNotitiesOp,
   laadLabels, slaLabelOp, verwijderLabel, slaAlleLabelsOp,
@@ -248,6 +248,34 @@ export default function NotesApp() {
       .catch(err => console.error('Supabase notitie verwijder sync mislukt:', err))
   }
 
+  // Archiveert of herstelt een note. Discrete actie: direct naar Supabase
+  // (geen debounce); een eventuele lopende debounce-timer wordt geannuleerd.
+  // Terugzetten bumpt gewijzigdOp zodat de note voorspelbaar bovenaan het
+  // actieve grid komt én niet direct opnieuw auto-gearchiveerd wordt (Fase 8).
+  function handleArchiveerToggle(id: string) {
+    const huidige = pendingSync.current.get(id) ?? notities.find(n => n.id === id)
+    if (!huidige) return
+
+    const timer = syncTimers.current.get(id)
+    if (timer) clearTimeout(timer)
+    syncTimers.current.delete(id)
+    pendingSync.current.delete(id)
+
+    const bijgewerkt = metGewijzigdOp(
+      huidige.gearchiveerd
+        ? { ...huidige, gearchiveerd: false, gearchiveerdOp: undefined }
+        : { ...huidige, gearchiveerd: true, gearchiveerdOp: nuIso() }
+    )
+    setNotities(prev => slaNotitieOp(bijgewerkt, prev))
+    setDetailNotitie(null)
+
+    const userId = gebruiker?.id
+    if (userId) {
+      slaNotitieOpInSupabase(bijgewerkt, userId)
+        .catch(err => console.error('Supabase archief sync mislukt:', err))
+    }
+  }
+
   function sluitDetail() {
     const open = detailNotitie
     setDetailNotitie(null)
@@ -446,7 +474,15 @@ export default function NotesApp() {
       .sort((a, b) => b.gewijzigdOp.localeCompare(a.gewijzigdOp)),
     [notities],
   )
-  const gearchiveerdeAantal = notities.length - actieveNotities.length
+  // Gearchiveerde notities, nieuwst gearchiveerd eerst.
+  const gearchiveerdeNotities = useMemo(
+    () => notities
+      .filter(n => n.gearchiveerd)
+      .sort((a, b) =>
+        (b.gearchiveerdOp ?? b.gewijzigdOp).localeCompare(a.gearchiveerdOp ?? a.gewijzigdOp)
+      ),
+    [notities],
+  )
 
   // Mappen alfabetisch voor sidebar, kiezers en beheer.
   const gesorteerdeMappen = useMemo(
@@ -561,13 +597,21 @@ export default function NotesApp() {
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
           {weergave === 'archief' ? (
-            <EmptyState
-              icon={<Archive size={40} className="text-gray-300" />}
-              titel="Archief is leeg"
-              tekst={gearchiveerdeAantal > 0
-                ? `${gearchiveerdeAantal} gearchiveerde notitie${gearchiveerdeAantal === 1 ? '' : 's'} — de archiefweergave komt in Fase 7.`
-                : 'Gearchiveerde notities en lijstjes verschijnen hier.'}
-            />
+            gearchiveerdeNotities.length > 0 ? (
+              <NotitieGrid
+                notities={gearchiveerdeNotities}
+                labels={labels}
+                onOpen={setDetailNotitie}
+                gedempt
+                onZetTerug={handleArchiveerToggle}
+              />
+            ) : (
+              <EmptyState
+                icon={<Archive size={40} className="text-gray-300" />}
+                titel="Archief is leeg"
+                tekst="Gearchiveerde notities en lijstjes verschijnen hier."
+              />
+            )
           ) : actieveNotities.length > 0 ? (
             <div className="min-h-full flex flex-col">
               <ZoekFilterBalk
@@ -658,6 +702,7 @@ export default function NotesApp() {
           labels={labels}
           mappen={gesorteerdeMappen}
           onWijzig={handleWijzigNotitie}
+          onArchiveerToggle={handleArchiveerToggle}
           onVerwijder={handleVerwijderNotitie}
           onSluit={sluitDetail}
         />

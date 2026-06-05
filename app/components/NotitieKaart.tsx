@@ -1,6 +1,6 @@
 'use client'
 
-import { Circle, CheckCircle2, FileText, ListChecks } from 'lucide-react'
+import { ArchiveRestore, Circle, CheckCircle2, FileText, ListChecks } from 'lucide-react'
 import type { Notitie, Label } from '@/types'
 import { formatDatumKort } from '@/lib/helpers'
 import { eventKleuren } from '@/lib/kleuren'
@@ -11,6 +11,8 @@ interface Props {
   labels: Label[]
   onOpen: (notitie: Notitie) => void
   onLabelKlik?: (id: string) => void   // pill-klik = filteren op dat label
+  gedempt?: boolean                    // archiefweergave: kaart visueel gedempt
+  onZetTerug?: (id: string) => void    // archiefweergave: Terugzetten-knop in de footer
 }
 
 const PREVIEW_ITEMS = 3
@@ -19,7 +21,7 @@ const MAX_PILLS = 3
 // Kaart in het notitie-grid: titel + korte preview + label-pills, iOS-stijl.
 // Het kaart-element is een div met role="button" (geen <button>): de pills
 // erin zijn zelf buttons en geneste buttons zijn invalid HTML.
-export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: Props) {
+export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik, gedempt, onZetTerug }: Props) {
   const isLijst = notitie.type === 'lijst'
   const afgevinkt = notitie.items.filter(i => i.afgevinkt).length
   const TypeIcon = isLijst ? ListChecks : FileText
@@ -47,6 +49,7 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
         kaartKleuren
           ? 'border-black/5'
           : 'bg-white border-gray-200 hover:border-gray-300 active:bg-gray-50',
+        gedempt ? 'opacity-70 hover:opacity-100' : '',
       ].join(' ')}
       style={kaartKleuren ? { backgroundColor: kaartKleuren.achtergrond } : undefined}
     >
@@ -139,7 +142,21 @@ export default function NotitieKaart({ notitie, labels, onOpen, onLabelKlik }: P
       >
         <TypeIcon size={13} className="shrink-0" />
         {isLijst && <span>{afgevinkt}/{notitie.items.length}</span>}
-        <span className="ml-auto">{formatDatumKort(notitie.gewijzigdOp)}</span>
+        {onZetTerug ? (
+          <>
+            {/* Archiefweergave: terugzet-knop + archiveerdatum */}
+            <button
+              onClick={e => { e.stopPropagation(); onZetTerug(notitie.id) }}
+              className="ml-auto inline-flex items-center gap-1 py-1 -my-1 text-[12px] font-semibold text-[#007AFF] hover:text-[#0066D6] transition-colors"
+            >
+              <ArchiveRestore size={13} />
+              Terugzetten
+            </button>
+            <span>{formatDatumKort(notitie.gearchiveerdOp ?? notitie.gewijzigdOp)}</span>
+          </>
+        ) : (
+          <span className="ml-auto">{formatDatumKort(notitie.gewijzigdOp)}</span>
+        )}
       </div>
     </div>
   )

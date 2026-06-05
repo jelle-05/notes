@@ -377,15 +377,27 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** handmatig archiveren en terugzetten.
 
+**Status: afgerond** (klik-test door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- **Geen swipe-actie** op kaarten: swipe past niet bij het grid/desktop-patroon. Archiveren zit in de detailweergave (bewerk-modus, boven de verwijderknop); terugzetten kan direct op de archiefkaart én in de detailweergave.
+- **Geen bevestiging** bij archiveren/terugzetten — de actie is omkeerbaar (anders dan verwijderen).
+- **Beide overgangen bumpen `gewijzigdOp`** (via `metGewijzigdOp`): teruggezette notes komen voorspelbaar bovenaan het actieve grid en worden niet direct opnieuw auto-gearchiveerd door Fase 8.
+- **Directe remote upsert** (geen 600ms-debounce): archiveren is een discrete actie, geen typestroom; een lopende debounce-timer voor die note wordt eerst geannuleerd.
+- Archief sorteert op `gearchiveerdOp` desc (nieuwst gearchiveerd eerst, fallback `gewijzigdOp`); de kaartdatum toont de archiveerdatum.
+- **Geen zoek/filterbalk in het archief** (vraag #16): kan later alsnog als dat nodig blijkt.
+
 ### Taken
-- [ ] Archiveer-actie op kaart (swipe/menu) en in de detailweergave → `gearchiveerd = true`, `gearchiveerdOp = now`.
-- [ ] Archiefweergave via sidebar-item / bottom-tab: alleen gearchiveerde notes, visueel herkenbaar (bv. gedempte kaarten).
-- [ ] "Terugzetten"-actie in archiefweergave → `gearchiveerd = false`, `gearchiveerdOp = null`.
-- [ ] Archiefstatus correct in alle filters/zoeken (gearchiveerd nooit tussen actief, tenzij expliciet in archiefweergave).
-- [ ] Empty state voor leeg archief.
+- [x] Archiveer-actie in de detailweergave (bewerk-modus achter het potlood): "Archiveer notitie/lijst" → `gearchiveerd = true`, `gearchiveerdOp = now`; modal sluit daarna.
+- [x] Archiefweergave via sidebar-item / bottom-tab: alleen gearchiveerde notes in het bestaande grid, visueel gedempt (`opacity-70`, vol bij hover).
+- [x] "Terugzetten"-actie op de archiefkaart (footer-knop met ArchiveRestore-icoon) én in de detailweergave → `gearchiveerd = false`, `gearchiveerdOp = undefined`.
+- [x] Archiefstatus correct in alle filters/zoeken: actieve weergave draait op `actieveNotities` (sluit gearchiveerd al uit sinds Fase 3); archiefweergave alléén gearchiveerde.
+- [x] Empty state voor leeg archief ("Archief is leeg" — Fase 7-tellertekst vervangen).
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
+- [ ] **Handmatig (Jelle):** klik-test na deploy — archiveren uit detail, terugzetten via kaart en detail, gedempte stijl, mobiel.
 
 ### Resultaat
-> Volwaardig archief: opruimen zonder weggooien.
+> Volwaardig archief: opruimen zonder weggooien; terugzetten met één klik.
 
 ---
 
@@ -515,7 +527,7 @@ Nog open (beslissen tijdens of na de eerste fases; niets hiervan blokkeert de pl
 | 12 | Pin/favoriet support? | Niet in v1; eenvoudig later (`gepind boolean`). → ideas.md |
 | 13 | Full-text search? | v1: client-side zoeken (fase 5) is voldoende bij persoonlijk gebruik. Postgres FTS alleen als het ooit traag wordt. |
 | 14 | Prullenbak of direct verwijderen? | v1: direct verwijderen mét bevestiging; archief vangt het "spijt"-scenario deels op. Prullenbak → ideas.md. |
-| 16 | Gearchiveerde notes in zoekresultaten? | **Bevestigd in fase 5:** niet in de standaardzoek; zoeken bínnen de archiefweergave eventueel bij fase 7. |
+| 16 | Gearchiveerde notes in zoekresultaten? | **Bevestigd in fase 5/7:** niet in de standaardzoek; het archief heeft (nog) geen eigen zoekbalk — kan later als dat nodig blijkt. |
 | 18 | Import/export? | Niet in v1. → ideas.md (export als tekst/JSON zou simpel zijn). |
 | 19 | Reminders/notificaties? | Niet in v1. Agenda heeft de hele infra (push/Telegram/e-mail) al — herbruikbaar als dit ooit gewenst is. → ideas.md |
 | 24 | Alleen geselecteerde checklist-items kopiëren? | Niet in v1; de hele lijst kopiëren dekt het boodschappen-scenario. → ideas.md |

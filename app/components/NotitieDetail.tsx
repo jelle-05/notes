@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, FolderMinus, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, ChevronUp, Circle, CheckCircle2, FolderMinus, Pencil, Plus, Trash2, X } from 'lucide-react'
 import type { Notitie, LijstItem, Label, NotitieMap } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
 import { eventKleuren } from '@/lib/kleuren'
@@ -14,6 +14,7 @@ interface Props {
   labels: Label[]
   mappen: NotitieMap[]
   onWijzig: (notitie: Notitie) => void
+  onArchiveerToggle: (id: string) => void
   onVerwijder: (id: string) => void
   onSluit: () => void
 }
@@ -22,7 +23,7 @@ interface Props {
 // direct doorgegeven aan NotesApp (optimistisch lokaal + debounced Supabase).
 // De draft is bewust onafhankelijk van props ná het openen, zodat een
 // realtime-herlaad de open editor nooit overschrijft.
-export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVerwijder, onSluit }: Props) {
+export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onArchiveerToggle, onVerwijder, onSluit }: Props) {
   const [draft, setDraft] = useState<Notitie>(() => ({ ...notitie, items: [...notitie.items] }))
   const [nieuwTekst, setNieuwTekst] = useState('')
   const [verwijderBevestig, setVerwijderBevestig] = useState(false)
@@ -350,6 +351,15 @@ export default function NotitieDetail({ notitie, labels, mappen, onWijzig, onVer
               )
             )}
           </div>
+
+          {/* Archiveren / terugzetten — omkeerbaar, dus geen bevestiging */}
+          <button
+            onClick={() => onArchiveerToggle(draft.id)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[15px] font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            {draft.gearchiveerd ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+            {draft.gearchiveerd ? 'Zet terug' : isLijst ? 'Archiveer lijst' : 'Archiveer notitie'}
+          </button>
 
           {/* Verwijderen — twee-staps bevestiging tegen per-ongeluk-klikken */}
           <button
