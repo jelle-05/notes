@@ -290,12 +290,22 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** labels met eigen kleuren, gekoppeld aan notes.
 
+**Status: afgerond** (klik-test door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- `LabelBeheer.tsx` en `lib/kleuren.ts` vrijwel 1:1 uit de agenda overgenomen; twee aanpassingen: de preview toont een **pill** (zoals op de kaarten, i.p.v. een event-blok) en verwijderen heeft een **twee-staps bevestiging** (consistent met NotitieDetail; agenda verwijdert direct).
+- Label verwijderen stript het id uit `labelIds` van alle notes **zonder `gewijzigdOp`-bump** — opruimen is geen inhoudelijke wijziging, dus de kaartvolgorde verspringt niet.
+- Kaarten tonen **max 3 pills + "+n"**; kleuren via `eventKleuren()` (eigen achtergrond-/tekstkleur, of een lichte tint van de basiskleur als fallback).
+- Koppelen in de detailweergave via een uitklapbare keuzelijst ("Label toevoegen"); togglen met includes-check voorkomt dubbele koppelingen. Loopt via het bestaande auto-save-pad.
+
 ### Taken
-- [ ] `LabelBeheer.tsx` + `lib/kleuren.ts` kopiëren uit agenda en aansluiten op `notes_labels` (aanmaken, bewerken, verwijderen; naam + kleur + optioneel eigen achtergrond-/tekstkleur via color picker; contrast-warning bij slechte combinatie).
-- [ ] Labels koppelen in `NotitieFormulier` (multi-select; een note kan meerdere labels hebben).
-- [ ] Label-pills op `NotitieKaart` en in de detailweergave (achtergrondkleur + tekstkleur van het label, afgeronde pill).
-- [ ] Label verwijderen → id alleen uit `label_ids` van alle notes filteren; notes zelf blijven onaangetast.
-- [ ] Edge cases: lange labelnamen (truncate), veel labels op één kaart (wrap of "+2"), verwijderd-maar-nog-gerefereerd label negeren bij rendering.
+- [x] `LabelBeheer.tsx` + `lib/kleuren.ts` gekopieerd uit agenda en aangesloten op `notes_labels` (aanmaken, bewerken, verwijderen; 12 preset-kleuren + eigen achtergrond-/tekstkleur via color picker met alpha-slider; contrast-warning bij ratio < 3; empty state).
+- [x] Labels koppelen in de detailweergave (`NotitieDetail`, sectie "Labels"): pills met ×, uitklapbare multi-select voor alle labels — een note kan meerdere labels hebben.
+- [x] Label-pills (`LabelPill.tsx`) op `NotitieKaart` en in de detailweergave (achtergrond- + tekstkleur, afgeronde pill, truncate op lange namen).
+- [x] Label verwijderen → id alleen uit `label_ids` van alle notes gefilterd (lokaal + bulk-upsert remote); notes zelf blijven onaangetast.
+- [x] Edge cases: lange labelnamen (truncate `max-w-[140px]`), veel labels op één kaart (max 3 + "+n"), verwijderd-maar-nog-gerefereerd label wordt stil overgeslagen bij rendering.
+- [x] Realtime: `notes_labels` stond al aan en NotesApp luisterde er al op — geen extra Supabase-instelling nodig.
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
 
 ### Resultaat
 > Onbeperkt eigen labels (bv. `Boodschappen`, groen/wit) op notes en lijstjes.

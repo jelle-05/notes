@@ -9,13 +9,14 @@ import { supabase } from '@/lib/supabase'
 import { nieuweNotitie, isLeeg } from '@/lib/helpers'
 import {
   laadNotities, slaNotitieOp, verwijderNotitie, slaAlleNotitiesOp,
-  laadLabels, slaAlleLabelsOp,
+  laadLabels, slaLabelOp, verwijderLabel, slaAlleLabelsOp,
   laadMappen, slaAlleMappenOp,
   laadInstellingen, slaInstellingenOp,
 } from '@/lib/opslag'
 import {
-  laadNotitiesVanSupabase, slaNotitieOpInSupabase, verwijderNotitieUitSupabase,
-  laadLabelsVanSupabase, laadMappenVanSupabase,
+  laadNotitiesVanSupabase, slaNotitieOpInSupabase, slaVeelNotitiesOpInSupabase, verwijderNotitieUitSupabase,
+  laadLabelsVanSupabase, slaLabelOpInSupabase, verwijderLabelUitSupabase,
+  laadMappenVanSupabase,
   laadInstellingenVanSupabase, uploadNaarSupabase,
 } from '@/lib/supabaseOpslag'
 import Sidebar from './Sidebar'
@@ -27,6 +28,7 @@ import PlaceholderModal from './PlaceholderModal'
 import NotitieGrid from './NotitieGrid'
 import NotitieDetail from './NotitieDetail'
 import NieuwKeuze from './NieuwKeuze'
+import LabelBeheer from './LabelBeheer'
 
 // Titels per weergave voor de TopBar.
 const WEERGAVE_TITELS: Record<Weergave, string> = {
@@ -36,10 +38,9 @@ const WEERGAVE_TITELS: Record<Weergave, string> = {
 }
 
 // Placeholder-modals voor functionaliteit uit latere fases (zie fases.md).
-type PlaceholderSoort = 'labels' | 'mappen' | 'instellingen' | null
+type PlaceholderSoort = 'mappen' | 'instellingen' | null
 
 const PLACEHOLDER_TITELS: Record<Exclude<PlaceholderSoort, null>, string> = {
-  labels:       'Labels',
   mappen:       'Mappen',
   instellingen: 'Instellingen',
 }
@@ -64,6 +65,7 @@ export default function NotesApp() {
   const [placeholder, setPlaceholder]         = useState<PlaceholderSoort>(null)
   const [nieuwKeuzeOpen, setNieuwKeuzeOpen]   = useState(false)
   const [detailNotitie, setDetailNotitie]     = useState<Notitie | null>(null)
+  const [labelBeheerOpen, setLabelBeheerOpen] = useState(false)
 
   // Debounced remote sync: per notitie één timer; de laatste versie wint.
   const syncTimers  = useRef(new Map<string, ReturnType<typeof setTimeout>>())
@@ -251,6 +253,42 @@ export default function NotesApp() {
     }
   }
 
+  // ── Label CRUD (optimistisch lokaal + directe remote sync) ───────────────────
+
+  function handleOpslaanLabel(label: Label) {
+    setLabels(prev => slaLabelOp(label, prev))
+    const userId = gebruiker?.id
+    if (userId) {
+      slaLabelOpInSupabase(label, userId)
+        .catch(err => console.error('Supabase label sync mislukt:', err))
+    }
+  }
+
+  // Verwijdert het label en stript het id uit alle notes — de notes zelf blijven
+  // altijd bestaan. Bewust zonder gewijzigdOp-bump: opruimen is geen inhoudelijke
+  // wijziging, dus de kaartvolgorde blijft staan.
+  function handleVerwijderLabel(id: string) {
+    setLabels(prev => verwijderLabel(id, prev))
+    verwijderLabelUitSupabase(id)
+      .catch(err => console.error('Supabase label verwijder sync mislukt:', err))
+
+    const getroffen = notities.filter(n => n.labelIds.includes(id))
+    if (getroffen.length === 0) return
+
+    const bijgewerkt = notities.map(n =>
+      n.labelIds.includes(id) ? { ...n, labelIds: n.labelIds.filter(l => l !== id) } : n
+    )
+    setNotities(bijgewerkt)
+    slaAlleNotitiesOp(bijgewerkt)
+
+    const userId = gebruiker?.id
+    if (userId) {
+      const geschoond = bijgewerkt.filter(n => getroffen.some(g => g.id === n.id))
+      slaVeelNotitiesOpInSupabase(geschoond, userId)
+        .catch(err => console.error('Supabase labelIds opschonen mislukt:', err))
+    }
+  }
+
   // ── Auth & data init (agenda-patroon) ────────────────────────────────────────
 
   useEffect(() => {
@@ -331,10 +369,6 @@ export default function NotesApp() {
   // Placeholder-teksten voor latere fases.
   function placeholderTekst(soort: Exclude<PlaceholderSoort, null>): string {
     switch (soort) {
-      case 'labels':
-        return labels.length > 0
-          ? `${labels.length} label${labels.length === 1 ? '' : 's'} gesynchroniseerd — beheren komt in Fase 4.`
-          : 'Labels beheren komt in Fase 4.'
       case 'mappen':
         return mappen.length > 0
           ? `${mappen.length} map${mappen.length === 1 ? '' : 'pen'} gesynchroniseerd — beheren komt in Fase 6.`
@@ -364,7 +398,7 @@ export default function NotesApp() {
       <Sidebar
         weergave={weergave}
         onWeergaveChange={setWeergave}
-        onLabels={() => setPlaceholder('labels')}
+        onLabels={() => setLabelBeheerOpen(true)}
         onMappen={() => setPlaceholder('mappen')}
         onInstellingen={() => setPlaceholder('instellingen')}
       />
@@ -389,7 +423,7 @@ export default function NotesApp() {
                 : 'Gearchiveerde notities en lijstjes verschijnen hier.'}
             />
           ) : actieveNotities.length > 0 ? (
-            <NotitieGrid notities={actieveNotities} onOpen={setDetailNotitie} />
+            <NotitieGrid notities={actieveNotities} labels={labels} onOpen={setDetailNotitie} />
           ) : (
             <EmptyState
               icon={<StickyNote size={40} className="text-gray-300" />}
@@ -423,11 +457,19 @@ export default function NotesApp() {
       {detailNotitie && (
         <NotitieDetail
           notitie={detailNotitie}
+          labels={labels}
           onWijzig={handleWijzigNotitie}
           onVerwijder={handleVerwijderNotitie}
           onSluit={sluitDetail}
         />
       )}
+      <LabelBeheer
+        open={labelBeheerOpen}
+        labels={labels}
+        onOpslaan={handleOpslaanLabel}
+        onVerwijder={handleVerwijderLabel}
+        onSluit={() => setLabelBeheerOpen(false)}
+      />
       {placeholder && (
         <PlaceholderModal
           open

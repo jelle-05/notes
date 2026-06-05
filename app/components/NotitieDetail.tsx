@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Circle, CheckCircle2, Plus, Trash2, X } from 'lucide-react'
-import type { Notitie, LijstItem } from '@/types'
+import { Check, ChevronDown, ChevronUp, Circle, CheckCircle2, Plus, Trash2, X } from 'lucide-react'
+import type { Notitie, LijstItem, Label } from '@/types'
 import { metGewijzigdOp, nieuwLijstItem } from '@/lib/helpers'
 import KopieerKnop from './KopieerKnop'
+import LabelPill from './LabelPill'
 
 interface Props {
   notitie: Notitie
+  labels: Label[]
   onWijzig: (notitie: Notitie) => void
   onVerwijder: (id: string) => void
   onSluit: () => void
@@ -17,10 +19,11 @@ interface Props {
 // direct doorgegeven aan NotesApp (optimistisch lokaal + debounced Supabase).
 // De draft is bewust onafhankelijk van props ná het openen, zodat een
 // realtime-herlaad de open editor nooit overschrijft.
-export default function NotitieDetail({ notitie, onWijzig, onVerwijder, onSluit }: Props) {
+export default function NotitieDetail({ notitie, labels, onWijzig, onVerwijder, onSluit }: Props) {
   const [draft, setDraft] = useState<Notitie>(() => ({ ...notitie, items: [...notitie.items] }))
   const [nieuwTekst, setNieuwTekst] = useState('')
   const [verwijderBevestig, setVerwijderBevestig] = useState(false)
+  const [labelKiezerOpen, setLabelKiezerOpen] = useState(false)
 
   const nieuwItemRef    = useRef<HTMLInputElement>(null)
   const bevestigTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -32,6 +35,7 @@ export default function NotitieDetail({ notitie, onWijzig, onVerwijder, onSluit 
     setDraft({ ...notitie, items: [...notitie.items] })
     setNieuwTekst('')
     setVerwijderBevestig(false)
+    setLabelKiezerOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notitie.id])
 
@@ -69,6 +73,22 @@ export default function NotitieDetail({ notitie, onWijzig, onVerwijder, onSluit 
     setNieuwTekst('')
     nieuwItemRef.current?.focus()
   }
+
+  // ── Labels ───────────────────────────────────────────────────────────────────
+
+  // Koppelt of ontkoppelt een label; includes-check voorkomt dubbele koppelingen.
+  function toggleLabel(id: string) {
+    wijzig({
+      labelIds: draft.labelIds.includes(id)
+        ? draft.labelIds.filter(l => l !== id)
+        : [...draft.labelIds, id],
+    })
+  }
+
+  // Gekoppelde labels opzoeken; verwijderde/onbekende ids stil overslaan.
+  const gekoppeldeLabels = draft.labelIds
+    .map(id => labels.find(l => l.id === id))
+    .filter((l): l is Label => l !== undefined)
 
   // ── Verwijderen (twee-staps bevestiging) ─────────────────────────────────────
 
@@ -158,6 +178,57 @@ export default function NotitieDetail({ notitie, onWijzig, onVerwijder, onSluit 
               />
             </div>
           )}
+
+          {/* Labels */}
+          <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-400 uppercase tracking-wide font-semibold">Labels</span>
+              <button
+                onClick={() => setLabelKiezerOpen(o => !o)}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-[#007AFF] hover:text-[#0066D6] transition-colors"
+              >
+                {labelKiezerOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {labelKiezerOpen ? 'Sluit' : 'Label toevoegen'}
+              </button>
+            </div>
+
+            {/* Gekoppelde labels */}
+            {gekoppeldeLabels.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {gekoppeldeLabels.map(label => (
+                  <LabelPill key={label.id} label={label} onVerwijder={() => toggleLabel(label.id)} />
+                ))}
+              </div>
+            ) : (
+              !labelKiezerOpen && <p className="text-[13px] text-gray-300">Geen labels</p>
+            )}
+
+            {/* Keuzelijst: alle labels aan/uit togglen */}
+            {labelKiezerOpen && (
+              labels.length > 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+                  {labels.map(label => {
+                    const actief = draft.labelIds.includes(label.id)
+                    return (
+                      <button
+                        key={label.id}
+                        onClick={() => toggleLabel(label.id)}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                      >
+                        <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: label.kleur }} />
+                        <span className="flex-1 text-[14px] text-gray-900 text-left truncate">{label.naam}</span>
+                        {actief && <Check size={16} className="text-[#007AFF] shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-[13px] text-gray-400">
+                  Nog geen labels — maak ze aan via <strong>Labels</strong> in het menu.
+                </p>
+              )
+            )}
+          </div>
 
           {/* Verwijderen — twee-staps bevestiging tegen per-ongeluk-klikken */}
           <button

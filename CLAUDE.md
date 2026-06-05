@@ -29,6 +29,8 @@ app/
     NotitieDetail.tsx  — detailweergave + editor ineen (auto-save, eigen draft)
     NieuwKeuze.tsx     — keuzemodal Notitie/Lijst bij ＋
     KopieerKnop.tsx    — kopieer-als-tekst met 2s feedback
+    LabelBeheer.tsx    — labelbeheer (kopie agenda: presets, color picker, contrast-warning)
+    LabelPill.tsx      — label-pill met eventKleuren()-kleurresolutie
     Sidebar.tsx        — desktop-navigatie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
@@ -39,6 +41,7 @@ app/
     opslag.ts          — localStorage cache (offline-first)
     supabaseOpslag.ts  — CRUD + camelCase↔snake_case converters per tabel
     kopieer.ts         — notitieAlsTekst() + kopieerNaarKlembord() (met fallback)
+    kleuren.ts         — eventKleuren(), contrastRatio(), alpha-helpers (kopie agenda)
     helpers.ts         — factories, isLeeg(), formatDatumKort(), metGewijzigdOp()
   types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
 supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
@@ -62,6 +65,14 @@ Volledig lege notes worden bij sluiten stil verwijderd. Verwijderen = twee-staps
 bevestiging. De detail-editor houdt een eigen draft (gereset op note-id) zodat
 realtime-herlaad een open editor nooit overschrijft.
 
+## Labels (Fase 4)
+
+Koppeling via `labelIds: string[]` op de note (geen join-table). Pills kleuren
+via `eventKleuren(label)`: eigen achtergrond-/tekstkleur of een lichte tint van
+de basiskleur. Kaarten tonen max 3 pills + "+n"; verwijderde label-ids worden
+stil overgeslagen bij rendering. Label verwijderen stript het id uit alle notes
+(zonder gewijzigdOp-bump) — notes blijven altijd bestaan.
+
 ## Kopieerfunctie
 
 `KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
@@ -82,4 +93,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 1 — projectbasis + navigatie-shell + auth-skelet
 - ✅ Fase 2 — datamodel (`supabase/schema.sql`) + offline-first opslag/sync-laag
 - ✅ Fase 3 — notes/checklist-UI + kopieerfunctie (auto-save, debounced sync)
-- ⏭️ Fase 4 — labels (LabelBeheer uit agenda + pills + koppelen)
+- ✅ Fase 4 — labels (LabelBeheer uit agenda, pills, koppelen in detailweergave)
+- ⏭️ Fase 5 — filteren (label/map) en zoeken
