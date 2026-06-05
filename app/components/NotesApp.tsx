@@ -7,6 +7,7 @@ import type { Weergave, Notitie, NotitieType, Label, NotitieMap, Instellingen } 
 import { STANDAARD_INSTELLINGEN, GEEN_MAP_FILTER } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { nieuweNotitie, isLeeg, metGewijzigdOp, nuIso } from '@/lib/helpers'
+import { vindAutoArchiefKandidaten, clampArchiefDagen } from '@/lib/archief'
 import {
   laadNotities, slaNotitieOp, verwijderNotitie, slaAlleNotitiesOp,
   laadLabels, slaLabelOp, verwijderLabel, slaAlleLabelsOp,
@@ -17,14 +18,14 @@ import {
   laadNotitiesVanSupabase, slaNotitieOpInSupabase, slaVeelNotitiesOpInSupabase, verwijderNotitieUitSupabase,
   laadLabelsVanSupabase, slaLabelOpInSupabase, verwijderLabelUitSupabase,
   laadMappenVanSupabase, slaMapOpInSupabase, verwijderMapUitSupabase,
-  laadInstellingenVanSupabase, uploadNaarSupabase,
+  laadInstellingenVanSupabase, slaInstellingenOpInSupabase, uploadNaarSupabase,
 } from '@/lib/supabaseOpslag'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import BottomBar from './BottomBar'
 import LoginPagina from './LoginPagina'
 import ProfielMenu from './ProfielMenu'
-import PlaceholderModal from './PlaceholderModal'
+import InstellingenMenu from './InstellingenMenu'
 import NotitieGrid from './NotitieGrid'
 import NotitieDetail from './NotitieDetail'
 import NieuwKeuze from './NieuwKeuze'
@@ -38,13 +39,6 @@ const WEERGAVE_TITELS: Record<Weergave, string> = {
   alle:    'Notities',
   map:     'Mappen',
   archief: 'Archief',
-}
-
-// Placeholder-modals voor functionaliteit uit latere fases (zie fases.md).
-type PlaceholderSoort = 'instellingen' | null
-
-const PLACEHOLDER_TITELS: Record<Exclude<PlaceholderSoort, null>, string> = {
-  instellingen: 'Instellingen',
 }
 
 // Debounce-interval voor remote upserts tijdens het typen.
@@ -64,7 +58,7 @@ export default function NotesApp() {
   // Navigatie & modals
   const [weergave, setWeergave]               = useState<Weergave>('alle')
   const [profielMenuOpen, setProfielMenuOpen] = useState(false)
-  const [placeholder, setPlaceholder]         = useState<PlaceholderSoort>(null)
+  const [instellingenOpen, setInstellingenOpen] = useState(false)
   const [nieuwKeuzeOpen, setNieuwKeuzeOpen]   = useState(false)
   const [detailNotitie, setDetailNotitie]     = useState<Notitie | null>(null)
   const [labelBeheerOpen, setLabelBeheerOpen] = useState(false)
@@ -82,6 +76,11 @@ export default function NotesApp() {
   // Debounced remote sync: per notitie één timer; de laatste versie wint.
   const syncTimers  = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const pendingSync = useRef(new Map<string, Notitie>())
+
+  // Auto-archief draait pas ná de eerste Supabase-sync (geen stale cache) en
+  // maximaal één keer per sessie; de ref wordt gereset als de toggle aangaat.
+  const [syncKlaar, setSyncKlaar]   = useState(false)
+  const autoArchiefGedraaid         = useRef(false)
 
   // ── Sync-functies (agenda-patroon) ───────────────────────────────────────────
 
@@ -370,6 +369,25 @@ export default function NotesApp() {
     }
   }
 
+  // ── Instellingen ─────────────────────────────────────────────────────────────
+
+  // Direct opslaan (optimistisch lokaal + remote fail-open). Gaat de toggle
+  // uit→aan, dan mag auto-archief deze sessie direct opnieuw controleren.
+  function handleWijzigInstellingen(nieuw: Instellingen) {
+    const geclampt: Instellingen = { ...nieuw, autoArchiefDagen: clampArchiefDagen(nieuw.autoArchiefDagen) }
+    if (geclampt.autoArchiefAan && !instellingen.autoArchiefAan) {
+      autoArchiefGedraaid.current = false
+    }
+    setInstellingen(geclampt)
+    slaInstellingenOp(geclampt)
+
+    const userId = gebruiker?.id
+    if (userId) {
+      slaInstellingenOpInSupabase(geclampt, userId)
+        .catch(err => console.error('Supabase instellingen sync mislukt:', err))
+    }
+  }
+
   // ── Zoeken & filteren ────────────────────────────────────────────────────────
 
   // Label-filter aan/uit togglen; includes-check voorkomt dubbele filters.
@@ -413,8 +431,8 @@ export default function NotesApp() {
         setMappen(laadMappen())
         setInstellingen(laadInstellingen())
         setKlaar(true)
-        // Sync Supabase stil op de achtergrond
-        achtergrondSync()
+        // Sync Supabase stil op de achtergrond; daarna mag auto-archief draaien
+        achtergrondSync().finally(() => setSyncKlaar(true))
       } else {
         setKlaar(true)   // Toon loginpagina
       }
@@ -427,13 +445,15 @@ export default function NotesApp() {
       if (event === 'SIGNED_IN' && user) {
         // Verse login: eenmalig volledige initialisatie
         setKlaar(false)
-        initialiseerData(user.id).finally(() => setKlaar(true))
+        initialiseerData(user.id).finally(() => { setKlaar(true); setSyncKlaar(true) })
       } else if (event === 'SIGNED_OUT') {
         setNotities([])
         setLabels([])
         setMappen([])
         setInstellingen(STANDAARD_INSTELLINGEN)
         setDetailNotitie(null)
+        setSyncKlaar(false)
+        autoArchiefGedraaid.current = false
         // klaar blijft true → loginpagina zichtbaar
       }
       // TOKEN_REFRESHED / USER_UPDATED: geen actie — data is al geladen
@@ -466,6 +486,37 @@ export default function NotesApp() {
 
     return () => { supabase.removeChannel(kanaal) }
   }, [gebruiker])
+
+  // ── Automatisch archiveren (Fase 8) ──────────────────────────────────────────
+  // Draait stil bij app-start, ná de eerste Supabase-sync (verse data, dus geen
+  // hele-rij-upsert over nieuwere remote edits heen) en maximaal één keer per
+  // sessie; opnieuw wanneer de toggle uit→aan gaat. Zelfde statusovergang als
+  // handmatig archiveren (Fase 7), als bulk-upsert. Idempotent: gearchiveerde
+  // notes zijn nooit kandidaat en teruggezette notes hebben een verse
+  // gewijzigdOp (de bump uit Fase 7), dus die blijven buiten de drempel.
+  useEffect(() => {
+    if (!syncKlaar || !gebruiker || !instellingen.autoArchiefAan) return
+    if (autoArchiefGedraaid.current) return
+    autoArchiefGedraaid.current = true
+
+    const kandidaten = vindAutoArchiefKandidaten(notities, instellingen)
+    if (kandidaten.length === 0) return
+
+    const nu = nuIso()
+    const ids = new Set(kandidaten.map(k => k.id))
+    const bijgewerkt = notities.map(n =>
+      ids.has(n.id)
+        ? metGewijzigdOp({ ...n, gearchiveerd: true, gearchiveerdOp: nu })
+        : n
+    )
+    // Bewust eenmalige state-update (guard-ref hierboven voorkomt cascades).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNotities(bijgewerkt)
+    slaAlleNotitiesOp(bijgewerkt)
+    slaVeelNotitiesOpInSupabase(bijgewerkt.filter(n => ids.has(n.id)), gebruiker.id)
+      .catch(err => console.error('Supabase auto-archief sync mislukt:', err))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncKlaar, gebruiker, instellingen])
 
   // Actieve (niet-gearchiveerde) notities, nieuwste wijziging eerst.
   const actieveNotities = useMemo(
@@ -546,14 +597,6 @@ export default function NotesApp() {
   // Alleen een mapfilter actief (geen zoek/labels) → "lege map"-empty-state.
   const alleenMapFilter = mapFilterActief && zoekterm.trim() === '' && actieveLabelIds.length === 0
 
-  // Placeholder-teksten voor latere fases.
-  function placeholderTekst(soort: Exclude<PlaceholderSoort, null>): string {
-    switch (soort) {
-      case 'instellingen':
-        return `Instellingen komen in Fase 8. Automatisch archiveren staat nu ${instellingen.autoArchiefAan ? `aan (na ${instellingen.autoArchiefDagen} dagen)` : 'uit'}.`
-    }
-  }
-
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (!klaar) {
@@ -580,7 +623,7 @@ export default function NotesApp() {
         onLabels={() => setLabelBeheerOpen(true)}
         onMapBeheer={() => { setMapBewerkStart(null); setMapBeheerOpen(true) }}
         onMapBewerk={map => { setMapBewerkStart(map); setMapBeheerOpen(true) }}
-        onInstellingen={() => setPlaceholder('instellingen')}
+        onInstellingen={() => setInstellingenOpen(true)}
       />
 
       {/* Hoofdkolom */}
@@ -687,7 +730,7 @@ export default function NotesApp() {
       <ProfielMenu
         open={profielMenuOpen}
         email={gebruiker.email ?? ''}
-        onInstellingen={() => setPlaceholder('instellingen')}
+        onInstellingen={() => setInstellingenOpen(true)}
         onUitloggen={uitloggen}
         onSluit={() => setProfielMenuOpen(false)}
       />
@@ -731,14 +774,12 @@ export default function NotesApp() {
         onVerwijder={handleVerwijderMap}
         onSluit={() => { setMapBeheerOpen(false); setMapBewerkStart(null) }}
       />
-      {placeholder && (
-        <PlaceholderModal
-          open
-          titel={PLACEHOLDER_TITELS[placeholder]}
-          tekst={placeholderTekst(placeholder)}
-          onSluit={() => setPlaceholder(null)}
-        />
-      )}
+      <InstellingenMenu
+        open={instellingenOpen}
+        instellingen={instellingen}
+        onWijzig={handleWijzigInstellingen}
+        onSluit={() => setInstellingenOpen(false)}
+      />
     </div>
   )
 }

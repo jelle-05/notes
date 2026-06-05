@@ -39,7 +39,7 @@ app/
     Sidebar.tsx        — desktop-navigatie + mappensectie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
-    PlaceholderModal.tsx — tijdelijk, voor features uit latere fases
+    InstellingenMenu.tsx — instellingen (sectie Archief: auto-archief toggle + dagen)
     LoginPagina / ProfielMenu / ErrorBoundary / SwRegistratie
   lib/
     supabase.ts        — Supabase client
@@ -48,6 +48,7 @@ app/
     kopieer.ts         — notitieAlsTekst() + kopieerNaarKlembord() (met fallback)
     kleuren.ts         — eventKleuren(), contrastRatio(), alpha-helpers (kopie agenda)
     helpers.ts         — factories, isLeeg(), formatDatumKort(), metGewijzigdOp()
+    archief.ts         — vindAutoArchiefKandidaten() + clampArchiefDagen() (pure functies)
   types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
 supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
 scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
@@ -124,6 +125,21 @@ debounce-timer wordt geannuleerd). Beide overgangen bumpen `gewijzigdOp`
 Fase 8). Archiefweergave: zelfde grid, kaarten gedempt (`opacity-70`), datum =
 `gearchiveerdOp`, sortering nieuwst-gearchiveerd eerst; geen zoek/filterbalk.
 
+## Instellingen & auto-archief (Fase 8)
+
+`InstellingenMenu` (via sidebar/ProfielMenu): sectie Archief met toggle
+"Automatisch archiveren" (default **uit**) en periode in dagen (default **30**,
+clamp 1–3650). Direct opslaan: optimistisch lokaal + fail-open upsert naar
+`notes_instellingen` (`onConflict: user_id` → één rij per gebruiker; geen
+realtime nodig — geladen bij start). Auto-archief draait **client-side bij
+app-start**, ná de eerste Supabase-sync (`syncKlaar`), max. één keer per sessie
+(guard-ref; reset bij toggle uit→aan en bij uitloggen). Selectie via de pure
+functie `vindAutoArchiefKandidaten()` in `lib/archief.ts` (actief + `gewijzigdOp`
+ouder dan drempel, fallback `aangemaaktOp`); overgang = zelfde als handmatig
+archiveren (incl. `gewijzigdOp`-bump), als stille bulk-upsert. Teruggezette
+notes worden niet direct her-gearchiveerd dankzij de bump uit Fase 7.
+Server-side cron blijft optioneel (Fase 10+).
+
 ## Kopieerfunctie
 
 `KopieerKnop` in de detail-header kopieert de note als **platte tekst**: titel +
@@ -148,4 +164,5 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 5 — filteren op labels (OR) + live zoeken; mapfilter technisch voorbereid
 - ✅ Fase 6 — mappen (beheer, sidebar-sectie + mobiele sheet, map kiezen per note, veilige verwijderflow)
 - ✅ Fase 7 — archief (archiveren via detail, terugzetten via kaart/detail, gedempte archiefweergave)
-- ⏭️ Fase 8 — instellingen + automatisch archiveren
+- ✅ Fase 8 — instellingen (InstellingenMenu) + automatisch archiveren (client-side bij app-start)
+- ⏭️ Fase 9 — polish, responsive en UX

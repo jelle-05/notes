@@ -405,15 +405,25 @@ export type Weergave = 'alle' | 'map' | 'archief'
 
 **Doel:** instellingenpagina + automatische archivering.
 
+**Status: afgerond** (klik-test door Jelle na deploy).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- **Alleen dagen** als periode-instelling (1–3650, default 30) — geen aparte eenheid-keuze (dagen/weken/maanden): het datamodel uit Fase 2 heeft alleen `auto_archief_dagen` en dat dekt het doel. Validatie: lege/ongeldige invoer valt terug op de huidige waarde; buiten bereik wordt geclampt met een korte rode hint.
+- **Direct opslaan, geen Bewaar-knop**: elke wijziging gaat optimistisch naar state + localStorage en fail-open naar Supabase (`onConflict: user_id`-upsert → nooit dubbele records; agenda-patroon met console.error bij netwerkfouten).
+- **Client-side bij app-start, ná de eerste Supabase-sync** (`syncKlaar`-state, gezet in `.finally()` van beide sync-paden): voorkomt archiveren op stale cache en dus hele-rij-upserts over nieuwere remote edits heen. Guard-ref → maximaal één run per sessie; reset wanneer de toggle uit→aan gaat (direct hercontroleren) en bij uitloggen.
+- Zelfde statusovergang als handmatig archiveren (Fase 7), als bulk: `gearchiveerd = true`, `gearchiveerdOp = nu`, `gewijzigdOp`-bump; stil (geen meldingen), fouten alleen in de console.
+- **Idempotent**: gearchiveerde notes zijn nooit kandidaat; teruggezette notes hebben een verse `gewijzigdOp` (Fase 7-bump) en blijven dus buiten de drempel. Onparseerbare datums worden overgeslagen (nooit per ongeluk archiveren); fallback voor leeftijd is `aangemaaktOp`.
+- **Geen realtime nodig voor `notes_instellingen`**: instellingen laden bij start; een wijziging op een ander apparaat komt mee bij de volgende start. Geen extra Supabase-instelling vereist.
+- `PlaceholderModal.tsx` verwijderd — alle placeholders zijn nu vervangen door echte functionaliteit.
+
 ### Taken
-- [ ] `InstellingenMenu.tsx` (agenda-patroon, via sidebar/ProfielMenu) met sectie **Archief**:
-  - Toggle "Automatisch archiveren" (standaard uit).
-  - Periode-instelling: aantal + eenheid (dagen/weken/maanden), **standaard 1 maand (30 dagen)**.
-  - Uitlegtekst: *"Notities die langer dan de ingestelde periode niet zijn gewijzigd, worden automatisch naar het archief verplaatst."*
-- [ ] Opslag: `notes_instellingen` (Supabase) + localStorage-cache; laden bij mount met defaults-merge.
-- [ ] `lib/archief.ts`: `pasAutoArchiefToe(notities, instellingen)` — draait één keer na het laden van data bij app-start; archiveert niet-gearchiveerde notes waarvan `gewijzigdOp` ouder is dan de drempel (optimistische update + upsert, zelfde pad als handmatig archiveren).
-- [ ] **Waarom `gewijzigdOp` en niet aanmaakdatum**: archiveren gaat over inactiviteit — een lijst die je nog afvinkt blijft "levend" (afvinken ververst `gewijzigdOp`).
-- [ ] Cron-variant (server-side, draait ook als de app dicht is) is bewust **optioneel, fase 10+** — zie daar. Fase 8 blokkeert dus niet op Vercel-cron-config.
+- [x] `InstellingenMenu.tsx` (modal in app-stijl, via sidebar én ProfielMenu) met sectie **Archief**: toggle "Automatisch archiveren" (standaard uit), periode-instelling in dagen (standaard 30), uitlegtekst + statusregel.
+- [x] Opslag: `notes_instellingen` (Supabase) + localStorage-cache; laden bij mount met defaults-merge (bestond al sinds Fase 2, nu aangesloten op de UI).
+- [x] `lib/archief.ts`: `vindAutoArchiefKandidaten(notities, instellingen)` (pure functie, testbaar) + `clampArchiefDagen`; uitvoering in NotesApp één keer na de eerste sync — zelfde pad als handmatig archiveren.
+- [x] **Waarom `gewijzigdOp` en niet aanmaakdatum**: archiveren gaat over inactiviteit — een lijst die je nog afvinkt blijft "levend" (afvinken ververst `gewijzigdOp`).
+- [x] Cron-variant (server-side, draait ook als de app dicht is) blijft bewust **optioneel, fase 10+** — zie daar. Fase 8 blokkeert dus niet op Vercel-cron-config.
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
+- [ ] **Handmatig (Jelle):** klik-test na deploy — instellingen openen (sidebar + profielmenu), toggle/periode wijzigen, refresh (waarde blijft), en met een korte periode controleren dat oude notes naar het archief gaan.
 
 ### Resultaat
 > Instelbare automatische archivering die bij elke app-start netjes opruimt.
