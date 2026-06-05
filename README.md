@@ -2,7 +2,7 @@
 
 Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen en archief. Zusterproject van de [agenda-app](https://agenda.jellebol.nl) en gebouwd op dezelfde stack en stijl (iOS-geïnspireerd, licht thema, Nederlands).
 
-> Status: **Fase 9 afgerond** — polish, toegankelijkheid en app-icoon. Zie [fases.md](fases.md) voor het volledige bouwplan. **TWA Fase 1 (PWA-readiness) afgerond** — zie [twa.md](twa.md) en de sectie [PWA & Android TWA](#pwa--android-twa) hieronder.
+> Status: **Fase 9 afgerond** — polish, toegankelijkheid en app-icoon. Zie [fases.md](fases.md) voor het volledige bouwplan. **De app draait ook als Android-app (TWA, privé-APK) met pushmeldingen** — zie [twa.md](twa.md) en de sectie [PWA & Android TWA](#pwa--android-twa) hieronder.
 
 ## Features
 
@@ -30,7 +30,9 @@ PWA:          manifest + service worker (offline fallback)
 
 ## PWA & Android TWA
 
-De app is PWA-ready: manifest (`app/manifest.ts`, incl. maskable icon en `lang`/`dir`), service worker met offline-fallback én push-handlers (`public/sw.js` + `public/offline.html`) en consistente theme-color. Het plan om de app als Android-app (Trusted Web Activity, privé-APK via Bubblewrap) te draaien staat in [twa.md](twa.md) — **TWA Fase 1 (readiness) en Fase 2 (push-basis, code) zijn afgerond**; Fase 3+ (wrapper/APK) volgt in een aparte map buiten deze repo.
+De app is PWA-ready: manifest (`app/manifest.ts`, incl. maskable icon en `lang`/`dir`), service worker met offline-fallback én push-handlers (`public/sw.js` + `public/offline.html`) en consistente theme-color.
+
+**Android-app (TWA)**: de app draait als privé-APK (Trusted Web Activity via Bubblewrap) — opent zonder adresbalk dankzij `public/.well-known/assetlinks.json`, deelt de Chrome-sessie en ontvangt pushmeldingen namens de app. Het Bubblewrap-project (incl. keystore — geheim!) staat in een aparte map buiten deze repo (`D:\jelle\notes-twa`); webapp-updates zijn direct live in de app zonder APK-rebuild. Volledig plan, fasestatus en testresultaten: [twa.md](twa.md).
 
 **Pushmeldingen** (instellingen → Pushmeldingen): inschakelen per apparaat + testpush-knop. Vereist env-vars (zie hieronder) en de tabel `notes_push_subscriptions` uit het schema; push is bewust beperkt tot het account in `PUSH_TOEGESTAAN_EMAIL`.
 

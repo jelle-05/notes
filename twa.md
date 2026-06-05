@@ -32,7 +32,7 @@ Wat er al staat (na Fase 0–9):
 | Auth/backend | ✅ Supabase (gedeeld project met agenda): Auth, PostgreSQL met RLS, Realtime; offline-first localStorage-sync |
 | API-routes | ✅ `app/api/push/subscribe` (POST/DELETE) + `app/api/push/test` (POST), Bearer-token-auth, beperkt tot `PUSH_TOEGESTAAN_EMAIL` |
 | `assetlinks.json` | ✅ `public/.well-known/assetlinks.json` — package `nl.jellebol.notes` + SHA-256-fingerprint van de keystore |
-| Push-infra | ✅ VAPID-keys gegenereerd (lokaal in `.env.local`; nog naar Vercel), `notes_push_subscriptions` in `supabase/schema.sql` (nog uitvoeren in SQL Editor), sectie Pushmeldingen in InstellingenMenu |
+| Push-infra | ✅ VAPID-keys in `.env.local` + Vercel, tabel `notes_push_subscriptions` aangemaakt in Supabase, sectie Pushmeldingen in InstellingenMenu — testpush werkt op desktop én S26 |
 
 **Referentie:** de agenda-app (`D:\jelle\agenda`, niet wijzigen) heeft een complete, werkende web-push-stack die vrijwel 1:1 te kopiëren is: `app/lib/pushUtils.ts` (subscribe/afmelden incl. VAPID-key-rotatiecheck), `app/api/push/subscribe` + `app/api/push/test` (Bearer-token auth, `web-push`, dode subscriptions opruimen bij 404/410), de `push_subscriptions`-tabel en sw.js-handlers voor `push`/`notificationclick`. Ook het InstellingenMenu-patroon met permission-status en testknop bestaat daar al.
 
@@ -190,7 +190,7 @@ Readiness-check uitgevoerd; bevindingen:
 - **`next.config.ts` is leeg** — prima; Vercel serveert `public/.well-known/assetlinks.json` straks gewoon als JSON. Bij Fase 3 live verifiëren (200 + `Content-Type: application/json`); alleen bij problemen een `headers()`-regel toevoegen.
 - ⏳ **Handmatige check** (Jelle): Chrome DevTools → Application → Manifest moet "Installable" tonen zonder warnings (live URL of `npm run dev`).
 
-### TWA Fase 2 — Push basis ✅ code afgerond
+### TWA Fase 2 — Push basis ✅ afgerond
 
 Gebouwd naar agenda-patroon:
 
@@ -201,10 +201,10 @@ Gebouwd naar agenda-patroon:
 - `supabase/schema.sql`: tabel `notes_push_subscriptions` + RLS (idempotent).
 - `InstellingenMenu.tsx`: sectie **Pushmeldingen** (status, toestemming, in-/uitschakelen, **Test pushmelding** met 2 s-feedback, foutregel, uitleg bij geblokkeerd).
 
-**Nog te doen door Jelle (config, geen code):**
-1. `supabase/schema.sql` opnieuw uitvoeren in de Supabase SQL Editor (idempotent — voegt alleen `notes_push_subscriptions` toe).
-2. In Vercel (Production + Preview) de env-vars zetten: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` — waarden staan lokaal in `.env.local` (de private key nooit elders delen).
-3. Testen: instellingen → Pushmeldingen inschakelen → Test pushmelding (eerst lokaal/desktop-Chrome, daarna op de S26 in Chrome).
+**Config (uitgevoerd):**
+1. ✅ `supabase/schema.sql` gedraaid in de Supabase SQL Editor (tabel `notes_push_subscriptions` staat).
+2. ✅ Env-vars in Vercel gezet: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TOEGESTAAN_EMAIL` (waarden lokaal in `.env.local`; de private key nooit elders delen).
+3. ✅ Getest: testpush komt binnen op desktop-Chrome én op de S26.
 
 ### TWA Fase 3 — TWA wrapper ✅ afgerond
 
@@ -214,8 +214,16 @@ Gebouwd naar agenda-patroon:
 - `bubblewrap build` → `app-release-signed.apk` (+ `.aab`, voor ons niet nodig).
 - `assetlinks.json` (package + SHA-256-fingerprint, publiek) staat in `public/.well-known/` en wordt door Vercel op de root geserveerd.
 
-### TWA Fase 4 — APK build en privé-installatie
-`bubblewrap build`, sideloaden op het eigen toestel, volledig testplan (§9) doorlopen, bevindingen hier bijwerken.
+### TWA Fase 4 — APK build en privé-installatie ✅ afgerond
+
+`app-release-signed.apk` gesideload op de S26 (eenmalig "onbekende apps" toegestaan). Resultaat:
+
+- ✅ App opent **zonder Chrome-adresbalk** — Digital Asset Links kloppen (test §9.4).
+- ✅ Supabase-login werkt in de TWA (gedeelde Chrome-storage) (test §9.5).
+- ✅ **Testpush komt binnen** als melding namens de Notities-app (tests §9.9–10).
+- Overige tests uit §9 (offline-koude-start, realtime, back-button, safe-area) draaien mee in dagelijks gebruik; bevindingen hier noteren als er iets opvalt.
+
+**Updates voortaan:** webapp-wijzigingen zijn direct live in de app (geen rebuild). Alleen bij wrapper-wijzigingen (icoon, naam, kleuren, Android-instellingen): in `D:\jelle\notes-twa` → `bubblewrap update && bubblewrap build` met **dezelfde keystore**, en opnieuw sideloaden.
 
 ### TWA Fase 5 — Later: echte notificaties
 Reminders per note, app-event-pushes, Vercel-cron-scheduler (agenda-patroon), terugkerende meldingen. Pas plannen na Fase 1–4.
@@ -237,4 +245,4 @@ Reminders per note, app-event-pushes, Vercel-cron-scheduler (agenda-patroon), te
 
 ---
 
-*Status: TWA Fase 1 ✅, Fase 2 ✅ (testpush werkt op desktop én S26) en Fase 3 ✅ (wrapper gebouwd, assetlinks gehost). Volgende stap: Fase 4 — `app-release-signed.apk` sideloaden op de S26 en het testplan (§9) doorlopen.*
+*Status: **TWA Fase 1 t/m 4 ✅ afgerond** (juni 2026) — de Notes-app draait als privé-APK op de S26: opent zonder adresbalk, ingelogd via gedeelde Chrome-storage, pushmeldingen komen binnen namens de app. Enige resterende fase: Fase 5 (echte notificaties/reminders) — bewust voor later.*

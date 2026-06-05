@@ -189,7 +189,9 @@ synchroon in de onClick opgebouwd (iOS user-gesture-eis). Feedback: 2 s
 - ✅ Fase 8 — instellingen (InstellingenMenu) + automatisch archiveren (client-side bij app-start)
 - ✅ Fase 9 — polish & a11y (favicon/app-icon, focus-visible, Escape, safe-area in sheets, reduced motion)
 - ⏭️ Fase 10 — testen, documentatie en oplevering
-- 📋 Toekomst: Android TWA (privé-APK) + pushmeldingen — plan in `twa.md`
-  - ✅ TWA Fase 1 — PWA-readiness-check: manifest aangevuld met `lang`/`dir`, icons/sw/offline-fallback geverifieerd (bevindingen in twa.md §11)
-  - ✅ TWA Fase 2 — push-basis (code): sw-handlers, pushUtils, API-routes, schema, sectie Pushmeldingen; config-stappen voor Jelle in twa.md §11 Fase 2
-  - ⏳ TWA Fase 3 — Bubblewrap-wrapper (in een map buiten deze repo); open vragen twa.md §12 zijn beantwoord
+- ✅ Android TWA (privé-APK) + pushmeldingen — plan en bevindingen in `twa.md`
+  - ✅ TWA Fase 1 — PWA-readiness-check: manifest aangevuld met `lang`/`dir`, icons/sw/offline-fallback geverifieerd
+  - ✅ TWA Fase 2 — push-basis: sw-handlers, pushUtils, API-routes, `notes_push_subscriptions`, sectie Pushmeldingen; testpush werkt op desktop én S26
+  - ✅ TWA Fase 3 — Bubblewrap-wrapper in `D:\jelle\notes-twa` (buiten deze repo, keystore in wachtwoordmanager); `public/.well-known/assetlinks.json` live
+  - ✅ TWA Fase 4 — APK gesideload op de S26: opent zonder adresbalk, push komt binnen namens de app
+  - ⏭️ TWA Fase 5 — echte notificaties (reminders, app-events, cron) — bewust later
