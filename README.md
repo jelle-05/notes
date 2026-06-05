@@ -2,7 +2,7 @@
 
 Persoonlijke notes-app voor notities en afvinkbare lijstjes, met labels, mappen en archief. Zusterproject van de [agenda-app](https://agenda.jellebol.nl) en gebouwd op dezelfde stack en stijl (iOS-geïnspireerd, licht thema, Nederlands).
 
-> Status: **Fase 1 afgerond** — projectbasis en navigatie-shell. Zie [fases.md](fases.md) voor het volledige bouwplan.
+> Status: **Fase 2 afgerond** — datamodel en offline-first opslag/sync-laag. Zie [fases.md](fases.md) voor het volledige bouwplan.
 
 ## Tech stack
 
@@ -30,6 +30,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
 Inloggen werkt met een bestaand agenda-account (zelfde Supabase-project).
+
+### Database-setup (eenmalig)
+
+1. Open het Supabase-dashboard → **SQL Editor** en voer [`supabase/schema.sql`](supabase/schema.sql) uit (idempotent, veilig opnieuw te draaien).
+2. Zet **Realtime** aan voor de tabellen `notes`, `notes_labels` en `notes_mappen` via Database → Replication.
+
+Zonder deze stap blijft de app gewoon werken (offline-first via localStorage), maar wordt er niets gesynchroniseerd tussen apparaten.
 
 ## Scripts
 

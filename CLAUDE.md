@@ -24,16 +24,30 @@ Persoonlijke notes-app (notities + afvinkbare lijstjes, labels, mappen, archief)
 ```
 app/
   components/
-    NotesApp.tsx       — hoofdcomponent: auth, state, weergave-switch, modals
+    NotesApp.tsx       — hoofdcomponent: auth, data-state, sync, realtime, modals
     Sidebar.tsx        — desktop-navigatie (incl. externe agenda-link)
     BottomBar.tsx      — mobiele tabs
     TopBar.tsx         — titel + nieuw + profiel
     PlaceholderModal.tsx — tijdelijk, voor features uit latere fases
     LoginPagina / ProfielMenu / ErrorBoundary / SwRegistratie
-  lib/supabase.ts      — Supabase client
-  types.ts             — gedeelde types (Weergave; Fase 2 voegt datatypes toe)
+  lib/
+    supabase.ts        — Supabase client
+    opslag.ts          — localStorage cache (offline-first)
+    supabaseOpslag.ts  — CRUD + camelCase↔snake_case converters per tabel
+    helpers.ts         — factories: nieuweNotitie(), nieuwLijstItem(), metGewijzigdOp()
+  types.ts             — Notitie, LijstItem, Label, NotitieMap, Instellingen, Weergave
+supabase/schema.sql    — uitvoerbaar databaseschema (tabellen, RLS, indexes)
 scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
 ```
+
+## Datamodel (zie supabase/schema.sql)
+
+- **`notes`** — beide soorten content (`type`: 'notitie' | 'lijst'); checklist-items als jsonb (`items`), labels als `label_ids text[]`, `map_id` (null = geen map), `gearchiveerd`/`gearchiveerd_op`, client-managed `gewijzigd_op` (basis voor auto-archief in Fase 8).
+- **`notes_labels`** — eigen labels, zelfde kolomvorm als agenda's `labels` (LabelBeheer 1:1 herbruikbaar).
+- **`notes_mappen`** — platte mappen; verwijderen zet `map_id` van notes op null (geen cascade).
+- **`notes_instellingen`** — één rij per user: `auto_archief_aan`, `auto_archief_dagen` (default 30).
+- Alles per-user met RLS (`auth.uid() = user_id`); geen DB-triggers — timestamps zet de client.
+- Sync is **fail-open**: als tabellen/netwerk ontbreken draait de app door op localStorage.
 
 ## Werkwijze
 
@@ -45,4 +59,5 @@ scripts/generate-icons.mjs — PWA-iconen genereren vanuit public/icon.svg
 
 - ✅ Fase 0 — analyse agenda-app (zie fases.md)
 - ✅ Fase 1 — projectbasis + navigatie-shell + auth-skelet
-- ⏭️ Fase 2 — datamodel (SQL in fases.md) + opslag/sync-laag
+- ✅ Fase 2 — datamodel (`supabase/schema.sql`) + offline-first opslag/sync-laag
+- ⏭️ Fase 3 — notes/checklist-UI + kopieerfunctie

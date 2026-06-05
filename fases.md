@@ -105,6 +105,17 @@ Gefaseerd bouwplan voor een Notes-app in Next.js, maximaal aansluitend op het be
 
 **Doel:** volledig datamodel in één keer neerzetten — inclusief kolommen voor archief, mappen en instellingen die pas in latere fases UI krijgen. De synclaag werkt met `select *` + hele-rij-upserts (agenda-patroon); kolommen later toevoegen is onnodig gedoe.
 
+**Status: afgerond** (op de handmatige Supabase-stap na, zie taken).
+
+**Vastgelegde keuzes tijdens implementatie:**
+- Het uitvoerbare schema staat in **`supabase/schema.sql`** (idempotent; veilig opnieuw te draaien). De SQL hieronder blijft als documentatie.
+- Labels via `label_ids text[]` op de note-rij — bevestigd boven een aparte koppeltabel (agenda-patroon, simpelste sync).
+- **Geen DB-triggers** voor `gewijzigd_op`: timestamps zijn client-managed (agenda-patroon), DB-default `now()` geldt alleen voor nieuwe rijen.
+- `LijstItem` bewust minimaal (`id`, `tekst`, `afgevinkt`); volgorde = arrayvolgorde. jsonb is schemaloos, dus latere velden (positie, timestamps) vergen geen migratie.
+- Het map-type heet `NotitieMap` (niet `Map`) om botsing met de globale ES `Map` te voorkomen.
+- Extra indexes: `(user_id, gearchiveerd)`, `(user_id, map_id)` en GIN op `label_ids`.
+- De synclaag is **fail-open**: zolang de SQL nog niet gedraaid is, werkt de app gewoon door op localStorage (catch rond alle Supabase-calls).
+
 ### Ontwerpbeslissingen
 - **Eén `notes`-tabel** met `type`-kolom (`'notitie' | 'lijst'`) — beide soorten delen vrijwel alle velden.
 - **Checklist-items als `jsonb`-kolom** op de rij (geen aparte items-tabel): past bij de hele-rij-sync van de agenda, en afvinken wordt één optimistische update + één upsert.
@@ -229,11 +240,14 @@ export type Weergave = 'alle' | 'map' | 'archief'
 ```
 
 ### Taken
-- [ ] SQL-schema aanmaken in Supabase + RLS controleren + Realtime aanzetten.
-- [ ] `app/types.ts` schrijven.
-- [ ] `lib/opslag.ts`: localStorage cache (laad/sla op voor notes, labels, mappen, instellingen; merge-op-defaults voor instellingen zoals agenda's `laadFilters`).
-- [ ] `lib/supabaseOpslag.ts`: CRUD + camelCase↔snake_case converters per tabel (agenda-patroon `rijNaarAfspraak`/`afspraakNaarRij`).
-- [ ] Sync in `NotesApp` aansluiten: laden bij mount, achtergrond-sync, realtime-herlaad.
+- [x] SQL-schema geschreven: `supabase/schema.sql` (tabellen, RLS, indexes, checks).
+- [ ] **Handmatig (Supabase-dashboard, kan Claude niet doen):** `supabase/schema.sql` uitvoeren in de SQL Editor + Realtime aanzetten voor `notes`, `notes_labels` en `notes_mappen` (Database → Replication).
+- [x] `app/types.ts` geschreven (`Notitie`, `LijstItem`, `Label`, `NotitieMap`, `Instellingen`, `STANDAARD_INSTELLINGEN`).
+- [x] `lib/opslag.ts`: localStorage cache (keys `notes_notities`, `notes_labels`, `notes_mappen`, `notes_instellingen`; merge-op-defaults voor instellingen; corrupte cache breekt de app niet).
+- [x] `lib/supabaseOpslag.ts`: CRUD + camelCase↔snake_case converters per tabel + bulk-upload voor eerste login + instellingen-upsert.
+- [x] `lib/helpers.ts`: factories `nieuweNotitie()`, `nieuwLijstItem()`, `metGewijzigdOp()`, `nuIso()` — houden Fase 3 dun.
+- [x] Sync in `NotesApp` aangesloten: localStorage direct bij mount, stille achtergrond-sync, realtime-kanaal op de drie tabellen, eerste-login-initialisatie. Empty states tonen alvast gesyncte aantallen.
+- [x] Checks: `npm run lint` ✅, `npm run build` ✅, dev-server rendert ✅.
 
 ### Resultaat
 > Volledig datamodel met werkende offline-first sync; latere fases voegen alleen nog UI toe.
